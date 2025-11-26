@@ -1,0 +1,2 @@
+trade_id,type,alert_date,alert_open,alert_high,alert_low,alert_close,alert_rsi,entry_date,entry_price,exit_date,exit_price,stop_loss,target,pnl,status
+1,BUY,2025-11-26 12:00,26329,26335.5,26318.2,26335.4,71.13,2025-11-26 12:05,26335.5,2025-11-26 12:35,26345.5,26318.2,26345.5,10.0,TARGET

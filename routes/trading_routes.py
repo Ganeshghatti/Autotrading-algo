@@ -53,4 +53,3 @@ def register_trading_routes(app, kite):
         if error:
             return error, 400
         return jsonify(result)
-

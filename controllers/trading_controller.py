@@ -28,13 +28,8 @@ def ltp(kite, symbol):
 
 def get_instruments(kite, exchange=None):
     """
-    Get all instruments or filter by exchange.
-    Useful for finding Nifty futures instrument tokens.
-    
-    Example usage:
-    - Get all instruments: get_instruments(kite)
-    - Get NSE instruments: get_instruments(kite, exchange="NSE")
-    - Get NFO (futures) instruments: get_instruments(kite, exchange="NFO")
+    Get Nifty futures instrument tokens.
+    Returns only NIFTY futures contracts sorted by expiry (nearest first).
     """
     access_token = read_from_file("access_token.txt")
     if not access_token:
@@ -43,8 +38,33 @@ def get_instruments(kite, exchange=None):
     kite.set_access_token(access_token)
     
     try:
-        instruments = kite.instruments(exchange) if exchange else kite.instruments()
-        return instruments, None
+        # Get all NFO (futures) instruments
+        instruments = kite.instruments("NFO")
+        
+        # Filter for NIFTY futures only (exact match, not BANKNIFTY, FINNIFTY, etc.)
+        nifty_futures = []
+        for inst in instruments:
+            name = inst.get('name', '').strip().upper()
+            tradingsymbol = inst.get('tradingsymbol', '').upper()
+            instrument_type = inst.get('instrument_type', '')
+            
+            # Check if it's exactly NIFTY (not BANKNIFTY, FINNIFTY, MIDCPNIFTY, etc.) and a futures contract
+            if name == 'NIFTY' and instrument_type == 'FUT':
+                nifty_futures.append({
+                    "instrument_token": inst.get('instrument_token'),
+                    "tradingsymbol": inst.get('tradingsymbol'),
+                    "name": inst.get('name'),
+                    "expiry": inst.get('expiry'),
+                    "exchange": inst.get('exchange')
+                })
+        
+        # Sort by expiry date (ascending) to get nearest expiry first
+        nifty_futures.sort(key=lambda x: x.get('expiry', ''))
+        
+        if not nifty_futures:
+            return None, "No NIFTY futures found"
+        
+        return nifty_futures, None
     except Exception as e:
         return None, f"Error fetching instruments: {str(e)}"
 
@@ -55,6 +75,14 @@ def historical_data_with_alerts(kite, data):
         return None, "Missing from_date"
     if not data.get("interval"):
         return None, "Missing interval"
+    
+    instrument_token = data["instrument_token"]
+    
+    # Convert to int if it's a string
+    try:
+        instrument_token = int(instrument_token)
+    except (ValueError, TypeError):
+        return None, f"Invalid instrument_token format: {instrument_token}. Must be a number."
     
     try:
         from_date = datetime.strptime(data["from_date"], "%Y-%m-%d")
@@ -68,19 +96,26 @@ def historical_data_with_alerts(kite, data):
         except ValueError:
             return None, "Invalid to_date format. Use YYYY-MM-DD"
     
-    # Read and set access token (same pattern as holdings() which works)
     access_token = read_from_file("access_token.txt")
     if not access_token:
         return None, "Missing access token"
-    
+
     kite.set_access_token(access_token)
     
-    historical_data = kite.historical_data(
-        instrument_token=data["instrument_token"],
-        from_date=from_date,
-        to_date=to_date,
-        interval=data["interval"]
-    )
+    print("setting access token done ")
+    
+    try:
+        historical_data = kite.historical_data(
+            instrument_token=instrument_token,
+            from_date=from_date,
+            to_date=to_date,
+            interval=data["interval"]
+        )
+    except Exception as e:
+        print("error getting historical data: ", e)
+        return None, f"Error getting historical data: {str(e)}"
+    
+    print("historical data: ", historical_data)
     
     if not historical_data:
         return None, "No historical data found"
@@ -290,7 +325,6 @@ def backtest_strategy(kite, data):
         except ValueError:
             return None, "Invalid to_date format. Use YYYY-MM-DD"
     
-    # Read and set access token (same pattern as holdings() which works)
     access_token = read_from_file("access_token.txt")
     if not access_token:
         return None, "Missing access token"
