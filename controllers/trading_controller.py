@@ -313,36 +313,21 @@ def backtest_strategy(kite, data):
     if not historical_data:
         return None, "No historical data found"
     
-    def calculate_rsi(prices, period=14):
-        """Calculate RSI using the same method as historical_data_with_alerts"""
-        if len(prices) < period + 1:
-            return [None] * len(prices)
-        
-        rsi_values = [None] * period
-        deltas = [prices[i] - prices[i-1] for i in range(1, len(prices))]
-        
-        for i in range(period, len(prices)):
-            period_changes = deltas[i-period:i]
-            gains = [change if change > 0 else 0 for change in period_changes]
-            losses = [-change if change < 0 else 0 for change in period_changes]
-            
-            avg_gain = sum(gains) / period
-            avg_loss = sum(losses) / period
-            
-            if avg_loss == 0:
-                rsi = 100
-            else:
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
-            
-            rsi_values.append(rsi)
-        
-        return rsi_values
-    
-    # Calculate RSI for all candles
+    # Convert historical data to DataFrame and calculate RSI using TA-Lib
+    # TA-Lib RSI uses Wilder's smoothing method (standard 14-period RSI)
+    # Formula: 
+    # - First 14 candles: Simple average of gains/losses
+    # - Later candles: Wilder's smoothing: AvgGain = (Previous AvgGain * 13 + Current Gain) / 14
+    # - RS = AvgGain / AvgLoss
+    # - RSI = 100 - (100 / (1 + RS))
     df = pd.DataFrame(historical_data)
-    closes = df["close"].tolist()
-    rsi_values = calculate_rsi(closes, period=14)
+    closes = df["close"].values  # Convert to numpy array for TA-Lib
+    
+    # Calculate RSI using TA-Lib (14-period, Wilder's smoothing)
+    rsi_values = talib.RSI(closes, timeperiod=14)
+    
+    # Convert numpy array to list and handle NaN values (first 14 candles will be NaN)
+    rsi_values = [float(val) if not np.isnan(val) else None for val in rsi_values]
     
     # Identify first candle of each day
     first_candle_of_day = set()
