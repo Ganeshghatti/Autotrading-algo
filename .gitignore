@@ -1,0 +1,17 @@
+access_token.txt
+refresh_token.txt
+venv/
+_pycache_/
+__pycache__/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.development
+.env.test
+.env.production
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

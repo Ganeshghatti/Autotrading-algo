@@ -1,0 +1,24 @@
+[
+  {
+    "trade_id": "PT_20251120_180339_382621",
+    "instrument_token": 256265,
+    "quantity": 1,
+    "transaction_type": "BUY",
+    "order_type": "MARKET",
+    "product": "MIS",
+    "price": 26192.15,
+    "timestamp": "2025-11-20T18:03:39.382672",
+    "status": "PAPER_TRADE_OPEN"
+  },
+  {
+    "trade_id": "PT_20251126_122517_818707",
+    "instrument_token": 256265,
+    "quantity": 1,
+    "transaction_type": "BUY",
+    "order_type": "MARKET",
+    "product": "MIS",
+    "price": 26154.6,
+    "timestamp": "2025-11-26T12:25:17.818751",
+    "status": "PAPER_TRADE_OPEN"
+  }
+]
