@@ -329,9 +329,24 @@ def backtest_strategy(kite, data):
     # Convert numpy array to list and handle NaN values (first 14 candles will be NaN)
     rsi_values = [float(val) if not np.isnan(val) else None for val in rsi_values]
     
-    # Identify first candle of each day
+    def is_after_325(candle_date):
+        """Check if time is 3:25 PM or later (15:25)"""
+        if isinstance(candle_date, str):
+            try:
+                date_obj = datetime.strptime(candle_date.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
+                return date_obj.hour > 15 or (date_obj.hour == 15 and date_obj.minute >= 25)
+            except:
+                return False
+        elif isinstance(candle_date, datetime):
+            return candle_date.hour > 15 or (candle_date.hour == 15 and candle_date.minute >= 25)
+        return False
+    
+    def should_allow_trading(candle_date):
+        """Check if trading is allowed (not after 3:25 PM)"""
+        return not is_after_325(candle_date)
+    
+    # Identify first candle of each trading day (9:15 AM IST - market opening)
     first_candle_of_day = set()
-    current_date = None
     for i, candle in enumerate(historical_data):
         date_str = candle.get('date', '')
         if date_str:
@@ -341,10 +356,10 @@ def backtest_strategy(kite, data):
                 else:
                     date_obj = date_str
                 
-                candle_date = date_obj.date()
-                if candle_date != current_date:
+                # Check if it's 9:15 AM (first candle of trading day)
+                # Market opens at 9:15 AM IST, so first 5-minute candle is 9:15-9:20
+                if date_obj.hour == 9 and date_obj.minute == 15:
                     first_candle_of_day.add(i)
-                    current_date = candle_date
             except:
                 pass
     
@@ -388,6 +403,23 @@ def backtest_strategy(kite, data):
     for i, candle in enumerate(historical_data):
         # Skip first candle of day for entry checks
         is_first_candle = i in first_candle_of_day
+        
+        # Check if time is 3:25 PM or later - exit any open trade
+        candle_date = candle.get('date', '')
+        if open_trade and is_after_325(candle_date):
+            # Force exit at 3:25 PM
+            close = candle.get('close', 0)
+            if close > 0:
+                open_trade['exit_price'] = close
+                open_trade['exit_date'] = candle_date
+                open_trade['exit_index'] = i
+                if open_trade['type'] == 'BUY':
+                    open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
+                else:
+                    open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
+                open_trade['status'] = 'EXIT_325'
+                trades.append(open_trade)
+                open_trade = None
         
         # Check if we have an open trade
         if open_trade:
@@ -457,8 +489,9 @@ def backtest_strategy(kite, data):
         
         # Check for entry from pending alerts (alert was on previous candle)
         # We stored alerts with their index as key, so check if previous candle index exists
+        # Only allow entry if trading is allowed (not after 3:25 PM)
         prev_candle_idx = i - 1
-        if not open_trade and not is_first_candle and prev_candle_idx in pending_alerts:
+        if not open_trade and not is_first_candle and prev_candle_idx in pending_alerts and should_allow_trading(candle_date):
             alert = pending_alerts[prev_candle_idx]
             high = candle.get('high', 0)
             low = candle.get('low', 0)
@@ -505,16 +538,17 @@ def backtest_strategy(kite, data):
                     }
                     del pending_alerts[prev_candle_idx]
         
-        # Check for new alert candles
-        for alert in alert_candles:
-            if alert['index'] == i and not is_first_candle:
-                # Check if range condition is met (high - low < 40)
-                candle_range = alert['high'] - alert['low']
-                if candle_range < 40:
-                    # Store as pending alert for next candle entry check
-                    pending_alerts[i] = alert
-                    alert_candles.remove(alert)
-                    break
+        # Check for new alert candles (only if trading is allowed - not after 3:25 PM)
+        if should_allow_trading(candle_date):
+            for alert in alert_candles:
+                if alert['index'] == i and not is_first_candle:
+                    # Check if range condition is met (high - low < 40)
+                    candle_range = alert['high'] - alert['low']
+                    if candle_range < 40:
+                        # Store as pending alert for next candle entry check
+                        pending_alerts[i] = alert
+                        alert_candles.remove(alert)
+                        break
     
     # Generate CSV with backtest results
     filename = f"backtest_{data['instrument_token']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"

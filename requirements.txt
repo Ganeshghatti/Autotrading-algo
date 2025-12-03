@@ -4,6 +4,8 @@ python-dotenv==1.2.1
 pandas>=2.3.2
 numpy>=2.2.6
 TA-Lib>=0.4.0
+gspread>=5.0.0
+google-auth>=2.0.0
 # Optional: For candlestick visualization
 # mplfinance>=0.12.9b7
 # plotly>=5.0.0

@@ -3,7 +3,6 @@ from kiteconnect import KiteConnect
 import os
 from dotenv import load_dotenv
 from utils.file_utils import read_from_file
-from utils.websocket_server import start_websocket_server
 from routes.auth_routes import register_auth_routes
 from routes.trading_routes import register_trading_routes
 
@@ -22,7 +21,6 @@ if not API_KEY or not API_SECRET:
     raise ValueError("API_KEY and API_SECRET must be set in .env file")
 
 kite = KiteConnect(api_key=API_KEY)
-# kws = start_websocket_server(API_KEY, ACCESS_TOKEN)
 
 @app.route('/')
 def home():
