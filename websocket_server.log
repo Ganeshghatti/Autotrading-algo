@@ -1,0 +1,24 @@
+2025-12-04 14:08:33,342 [INFO] [INIT] Loading candles from file at 2025-12-04 14:08:33 IST...
+2025-12-04 14:08:33,342 [INFO] ✅ Loaded 5 candles from /Users/ganeshghatti/Documents/Auto-trading/candles_data.json
+2025-12-04 14:08:33,342 [INFO] [INIT] 📝 PAPER TRADING MODE - Trades will be saved to paper_trades.json
+2025-12-04 14:08:33,342 [INFO] [INIT] ⚠️  To enable live trading, set LIVE_TRADING = True at the top of websocket_server.py
+2025-12-04 14:08:33,342 [INFO] [INIT] Starting WebSocket server with RSI trading strategy at 2025-12-04 14:08:33 IST
+2025-12-04 14:08:33,342 [INFO] [INIT] Trading Configuration:
+2025-12-04 14:08:33,342 [INFO]   - Lots: 1 lot(s)
+2025-12-04 14:08:33,342 [INFO]   - Quantity: 50 shares (1 lot = 50 shares for NIFTY)
+2025-12-04 14:08:33,342 [INFO]   - Product: MIS (Intraday)
+2025-12-04 14:08:33,342 [INFO]   - Mode: 📝 PAPER TRADING
+2025-12-04 14:08:33,342 [INFO]   - Candles Storage: /Users/ganeshghatti/Documents/Auto-trading/candles_data.json (5 candles loaded)
+2025-12-04 14:08:33,342 [INFO]   - Log File: /Users/ganeshghatti/Documents/Auto-trading/websocket_server.log
+2025-12-04 14:08:33,477 [INFO] WebSocket connected: {"peer": "tcp4:13.232.138.71:443", "headers": {"date": "Thu, 04 Dec 2025 08:38:33 GMT", "connection": "upgrade", "upgrade": "websocket", "sec-websocket-accept": "LZNBrXCf3O2rLYa2bTcoZnHqHPg="}, "version": 18, "protocol": null, "extensions": []}
+2025-12-04 14:08:33,477 [INFO] Subscribed to instrument_token: 12683010 at 2025-12-04 14:08:33 IST
+2025-12-04 14:08:33,725 [INFO] New 5-minute candle started: 2025-12-04 14:05:00 IST
+2025-12-04 14:10:00,734 [INFO] 5-minute candle completed: 2025-12-04 14:05:00 IST - 2025-12-04 14:10:00 IST, OHLC: O=26105.0, H=26243.9, L=26070.2, C=26136.2
+2025-12-04 14:10:00,738 [INFO] New 5-minute candle started: 2025-12-04 14:10:00 IST
+2025-12-04 14:15:00,726 [INFO] 5-minute candle completed: 2025-12-04 14:10:00 IST - 2025-12-04 14:15:00 IST, OHLC: O=26105.0, H=26243.9, L=26070.2, C=26136.2
+2025-12-04 14:15:00,730 [INFO] New 5-minute candle started: 2025-12-04 14:15:00 IST
+2025-12-04 14:20:00,223 [INFO] 5-minute candle completed: 2025-12-04 14:15:00 IST - 2025-12-04 14:20:00 IST, OHLC: O=26105.0, H=26243.9, L=26070.2, C=26136.2
+2025-12-04 14:20:00,227 [INFO] New 5-minute candle started: 2025-12-04 14:20:00 IST
+2025-12-04 15:06:04,512 [ERROR] Connection error: 1006 - connection was closed uncleanly (peer dropped the TCP connection without previous WebSocket closing handshake)
+2025-12-04 15:06:04,513 [ERROR] Connection closed: 1006 - connection was closed uncleanly (peer dropped the TCP connection without previous WebSocket closing handshake)
+2025-12-04 15:06:04,513 [WARNING] WebSocket closed: 1006 - connection was closed uncleanly (peer dropped the TCP connection without previous WebSocket closing handshake) at 2025-12-04 15:06:04 IST
