@@ -1,14 +1,11 @@
-from kiteconnect import KiteTicker
+from kiteconnect import KiteTicker, KiteConnect
 from datetime import datetime, timedelta
 import talib
 import numpy as np
-import pandas as pd
 import os
 import sys
-import json
 from dotenv import load_dotenv
-import gspread
-from google.oauth2.service_account import Credentials
+import json
 
 # Get project root directory (parent of utils folder)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,7 +14,30 @@ PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 # Add project root to path for imports
 sys.path.insert(0, PROJECT_ROOT)
 
-# Simple file reading function (no need for complex imports)
+from utils.email_utils import send_trade_notification
+
+# ============================================================================
+# TRADING MODE CONFIGURATION
+# ============================================================================
+# Set to False for paper trading (saves to JSON file)
+# Set to True for live trading (places actual orders on Kite)
+LIVE_TRADING = False  # CHANGE THIS TO True FOR LIVE TRADING
+
+# ============================================================================
+# TRADING PARAMETERS FOR NIFTY FUTURES
+# ============================================================================
+# TRADING_PRODUCT Explanation:
+#   - MIS (Margin Intraday Square-off): Intraday trading, auto square-off at 3:20 PM
+#   - NRML (Normal/Carry Forward): Position can be held overnight
+#   - CNC (Cash and Carry): For equity delivery (not applicable for futures)
+# 
+# For NIFTY Futures: Use MIS for intraday or NRML for overnight positions
+# 1 lot of NIFTY = 50 shares, so quantity should be 50 for 1 lot
+TRADING_PRODUCT = os.getenv("TRADING_PRODUCT", "MIS")  # MIS (intraday) or NRML (overnight)
+TRADING_LOTS = int(os.getenv("TRADING_LOTS", "1"))  # Number of lots (minimum 1 lot)
+TRADING_QUANTITY = TRADING_LOTS * 50  # NIFTY lot size is 50, so 1 lot = 50 shares
+
+# Simple file reading function
 def read_from_file(filename):
     """Read file from project root"""
     filepath = os.path.join(PROJECT_ROOT, filename) if not os.path.isabs(filename) else filename
@@ -28,137 +48,15 @@ def read_from_file(filename):
 env_path = os.path.join(PROJECT_ROOT, '.env')
 load_dotenv(env_path)
 
-# Google Sheets configuration
-SPREADSHEET_ID = "1louYs2BoLFTO7hbUngJOBW5zhNoIwta8eJHRNmOr4I0"
-SHEET_NAME = None  # Will use the default sheet (gid=610077776)
-gsheet = None
-worksheet = None
-tick_row = 2  # Start writing from row 2 (row 1 is headers)
-
 # Global state for trading strategy
-candles = []  # Store OHLC candles
-rsi_values = []  # Store RSI values
-prev_rsi = None
-open_trade = None
-pending_alert = None
-current_candle = None
-current_candle_start = None
+candles = []  # Store OHLC candles for RSI calculation
+open_trade = None  # Current open trade (only 1 trade at a time)
+pending_alert = None  # Alert candle waiting for next candle to check entry
+current_candle = None  # Current 5-minute candle being built
+current_candle_start = None  # Start time of current candle
 instrument_token = None
 interval_minutes = 5  # 5-minute candles
-
-def init_google_sheets():
-    """Initialize Google Sheets connection"""
-    global gsheet, worksheet
-    
-    try:
-        # Load credentials from credentials.json (in project root)
-        creds_path = os.path.join(PROJECT_ROOT, "credentials.json")
-        if not os.path.exists(creds_path):
-            print(f"Warning: credentials.json not found at {creds_path}")
-            return False
-        
-        scope = ['https://spreadsheets.google.com/feeds',
-                 'https://www.googleapis.com/auth/drive']
-        creds = Credentials.from_service_account_file(creds_path, scopes=scope)
-        gc = gspread.authorize(creds)
-        
-        # Open the spreadsheet
-        gsheet = gc.open_by_key(SPREADSHEET_ID)
-        
-        # Get the worksheet (use the specific gid if needed, or first sheet)
-        worksheets = gsheet.worksheets()
-        if worksheets:
-            worksheet = worksheets[0]  # Use first sheet
-        else:
-            worksheet = gsheet.add_worksheet(title="Trading Data", rows=1000, cols=20)
-        
-        # Set up headers if sheet is empty
-        if worksheet.row_count < 2:
-            headers = [
-                "Timestamp", "Price", "Volume", "Open", "High", "Low", "Close",
-                "RSI", "Alert Type", "Alert RSI", "Alert High", "Alert Low",
-                "Trade Type", "Entry Price", "Exit Price", "Stop Loss", "Target", "P&L", "Status"
-            ]
-            worksheet.append_row(headers)
-            print("Initialized Google Sheet with headers")
-        
-        print("Google Sheets connection established")
-        return True
-    except Exception as e:
-        print(f"Error initializing Google Sheets: {e}")
-        return False
-
-def write_tick_to_sheet(tick, candle=None, rsi=None, alert=None, trade=None):
-    """Write 5-minute candle data to Google Sheet (called once per completed candle)"""
-    global worksheet, tick_row
-    
-    if worksheet is None:
-        print("Warning: worksheet is None, cannot write to sheet")
-        return
-
-    print(f"Writing tick to sheet")
-    print(f"Candle: {candle}")
-    print(f"RSI: {rsi}")
-    print(f"Alert: {alert}")
-    print(f"Trade: {trade}")
-    
-    try:
-        # Use candle timestamp if available, otherwise current time
-        if candle and candle.get('date'):
-            timestamp = candle['date']
-            if isinstance(timestamp, datetime):
-                tick_time = timestamp
-            else:
-                tick_time = datetime.now()
-        else:
-            tick_time = datetime.now()
-        
-        # Prepare row data for 5-minute candle
-        row_data = [
-            tick_time.strftime('%Y-%m-%d %H:%M:%S'),  # Timestamp
-            candle['close'] if candle and candle.get('close') else '',  # Price (use close)
-            candle['volume'] if candle and candle.get('volume') else 0,  # Volume
-            candle['open'] if candle and candle.get('open') else '',  # Open
-            candle['high'] if candle and candle.get('high') else '',  # High
-            candle['low'] if candle and candle.get('low') else '',  # Low
-            candle['close'] if candle and candle.get('close') else '',  # Close
-            round(rsi, 2) if rsi else '',  # RSI
-        ]
-        
-        # Alert columns
-        if alert:
-            row_data.extend([
-                alert.get('alert_type', ''),  # Alert Type
-                round(alert.get('rsi', 0), 2),  # Alert RSI
-                alert.get('high', ''),  # Alert High
-                alert.get('low', ''),  # Alert Low
-            ])
-        else:
-            row_data.extend(['', '', '', ''])  # Empty alert columns
-        
-        # Trade columns
-        if trade:
-            row_data.extend([
-                trade.get('type', ''),  # Trade Type
-                trade.get('entry_price', ''),  # Entry Price
-                trade.get('exit_price', ''),  # Exit Price
-                trade.get('stop_loss', ''),  # Stop Loss
-                trade.get('target', ''),  # Target
-                round(trade.get('pnl', 0), 2) if trade.get('pnl') else '',  # P&L
-                trade.get('status', ''),  # Status
-            ])
-        else:
-            row_data.extend(['', '', '', '', '', '', ''])  # Empty trade columns
-        
-        # Append row to sheet
-        worksheet.append_row(row_data)
-        tick_row += 1
-        print(f"✓ Written to Google Sheet: {tick_time.strftime('%H:%M:%S')}, RSI={round(rsi, 2) if rsi else 'N/A'}, OHLC: O={candle.get('open') if candle else 'N/A'}, H={candle.get('high') if candle else 'N/A'}, L={candle.get('low') if candle else 'N/A'}, C={candle.get('close') if candle else 'N/A'}")
-        
-    except Exception as e:
-        print(f"Error writing to Google Sheet: {e}")
-        import traceback
-        traceback.print_exc()
+kite = None  # KiteConnect instance for live trading
 
 def initialize_candle(tick_time):
     """Initialize a new candle"""
@@ -174,39 +72,27 @@ def initialize_candle(tick_time):
 
 def update_candle_with_tick(candle, tick):
     """Update candle OHLC with new tick data"""
-    # Use last_price from tick
     price = tick.get('last_price', 0)
     if price == 0:
         return candle
     
-    # Use tick's OHLC data if available (for more accurate candle data)
+    # Use tick's OHLC data if available (more accurate)
     tick_ohlc = tick.get('ohlc', {})
     if tick_ohlc and tick_ohlc.get('open') is not None:
-        # Use tick's OHLC data (this is the current candle's OHLC from exchange)
         tick_open = tick_ohlc.get('open')
         tick_high = tick_ohlc.get('high')
         tick_low = tick_ohlc.get('low')
         tick_close = tick_ohlc.get('close')
         
-        # Set open if not set
         if candle['open'] is None and tick_open is not None:
             candle['open'] = tick_open
         
-        # Update high (handle None values)
         if tick_high is not None:
-            if candle['high'] is None:
-                candle['high'] = tick_high
-            else:
-                candle['high'] = max(candle['high'], tick_high)
+            candle['high'] = tick_high if candle['high'] is None else max(candle['high'], tick_high)
         
-        # Update low (handle None values)
         if tick_low is not None:
-            if candle['low'] is None:
-                candle['low'] = tick_low
-            else:
-                candle['low'] = min(candle['low'], tick_low)
+            candle['low'] = tick_low if candle['low'] is None else min(candle['low'], tick_low)
         
-        # Update close
         if tick_close is not None:
             candle['close'] = tick_close
     else:
@@ -221,38 +107,39 @@ def update_candle_with_tick(candle, tick):
             candle['low'] = min(candle['low'], price)
             candle['close'] = price
     
-    # Update volume from tick
+    # Update volume
     volume_traded = tick.get('volume_traded', 0)
     if volume_traded > 0:
-        candle['volume'] = volume_traded  # Use cumulative volume from exchange
+        candle['volume'] = volume_traded
     else:
-        candle['volume'] += tick.get('volume', 0)  # Fallback to incremental volume
+        candle['volume'] += tick.get('volume', 0)
     
     return candle
 
 def calculate_rsi_from_candles(candles_list, period=14):
     """Calculate RSI using TA-Lib from candle list"""
     if len(candles_list) < period + 1:
+        print(f"[DEBUG] Not enough candles for RSI: {len(candles_list)} < {period + 1}")
         return None
     
-    # Extract closes
     closes = [candle['close'] for candle in candles_list if candle['close'] is not None]
     if len(closes) < period + 1:
+        print(f"[DEBUG] Not enough valid closes for RSI: {len(closes)} < {period + 1}")
         return None
     
     closes_array = np.array(closes, dtype=float)
     rsi = talib.RSI(closes_array, timeperiod=period)
     
-    # Return the last RSI value
     if len(rsi) > 0 and not np.isnan(rsi[-1]):
-        return float(rsi[-1])
+        rsi_value = float(rsi[-1])
+        print(f"[DEBUG] RSI calculated: {rsi_value:.2f} (from {len(candles_list)} candles)")
+        return rsi_value
+    print(f"[DEBUG] RSI calculation returned NaN or empty")
     return None
 
 def is_first_candle_of_day(candle_time):
     """Check if this is the first candle of the trading day (9:15 AM IST)"""
     if isinstance(candle_time, datetime):
-        # Check if it's 9:15 AM (first candle of trading day)
-        # Market opens at 9:15 AM IST, so first 5-minute candle is 9:15-9:20
         return candle_time.hour == 9 and candle_time.minute == 15
     return False
 
@@ -262,24 +149,15 @@ def is_after_325(candle_time):
         return candle_time.hour > 15 or (candle_time.hour == 15 and candle_time.minute >= 25)
     return False
 
-def should_allow_trading(candle_time):
-    """Check if trading is allowed (not after 3:25 PM)"""
-    return not is_after_325(candle_time)
-
 def check_alert_candle(candle, rsi):
-    """Check if current candle is an alert candle (RSI crossing 60 or 40)"""
-    global prev_rsi
-    
-    if rsi is None or prev_rsi is None:
-        prev_rsi = rsi
+    """Mark alert candle when RSI > 60 or RSI < 40"""
+    if rsi is None:
+        print(f"[DEBUG] RSI is None, cannot check alert")
         return None
     
-    crossed_60_up = prev_rsi <= 60 and rsi > 60
-    crossed_40_down = prev_rsi >= 40 and rsi < 40
+    print(f"[DEBUG] Checking alert candle: RSI={rsi:.2f}, Candle OHLC: O={candle.get('open')}, H={candle.get('high')}, L={candle.get('low')}, C={candle.get('close')}")
     
-    prev_rsi = rsi
-    
-    if crossed_60_up or crossed_40_down:
+    if rsi > 60:
         alert = {
             'date': candle['date'],
             'open': candle['open'],
@@ -287,29 +165,154 @@ def check_alert_candle(candle, rsi):
             'low': candle['low'],
             'close': candle['close'],
             'rsi': rsi,
-            'alert_type': 'BUY' if crossed_60_up else 'SELL'
+            'alert_type': 'BUY'
         }
+        print(f"[DEBUG] ✅ BUY ALERT DETECTED: RSI={rsi:.2f} > 60")
         return alert
+    elif rsi < 40:
+        alert = {
+            'date': candle['date'],
+            'open': candle['open'],
+            'high': candle['high'],
+            'low': candle['low'],
+            'close': candle['close'],
+            'rsi': rsi,
+            'alert_type': 'SELL'
+        }
+        print(f"[DEBUG] ✅ SELL ALERT DETECTED: RSI={rsi:.2f} < 40")
+        return alert
+    
+    print(f"[DEBUG] No alert: RSI={rsi:.2f} is between 40 and 60")
     return None
+
+def get_tradingsymbol_from_token(instrument_token):
+    """Get tradingsymbol from instrument_token for NIFTY futures"""
+    global kite
+    
+    try:
+        # Fetch all NFO instruments
+        instruments = kite.instruments("NFO")
+        
+        # Find the instrument matching the token
+        for inst in instruments:
+            if inst['instrument_token'] == instrument_token:
+                tradingsymbol = inst['tradingsymbol']
+                exchange = inst['exchange']
+                print(f"[DEBUG] Found tradingsymbol: {tradingsymbol} on {exchange} for token {instrument_token}")
+                return tradingsymbol, exchange
+        
+        print(f"[ERROR] Could not find tradingsymbol for instrument_token: {instrument_token}")
+        return None, None
+    except Exception as e:
+        print(f"[ERROR] Error fetching instruments: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+def execute_trade_order(trade_type, entry_price, instrument_token):
+    """Execute trade order - either paper trading or live trading"""
+    global kite
+    
+    if LIVE_TRADING:
+        # ========================================================================
+        # LIVE TRADING: Place actual order on Kite for NIFTY Futures
+        # ========================================================================
+        try:
+            # Get tradingsymbol from instrument_token
+            tradingsymbol, exchange = get_tradingsymbol_from_token(instrument_token)
+            if not tradingsymbol:
+                print(f"[LIVE TRADING] ❌ Cannot place order: tradingsymbol not found")
+                return None
+            
+            # Map product string to KiteConnect constant
+            if TRADING_PRODUCT == "MIS":
+                product = kite.PRODUCT_MIS
+            elif TRADING_PRODUCT == "NRML":
+                product = kite.PRODUCT_NRML
+            else:
+                product = kite.PRODUCT_MIS  # Default to MIS
+            
+            print(f"[LIVE TRADING] Placing {trade_type} order for NIFTY Futures:")
+            print(f"  - Tradingsymbol: {tradingsymbol}")
+            print(f"  - Exchange: {exchange}")
+            print(f"  - Quantity: {TRADING_QUANTITY} ({TRADING_LOTS} lot(s))")
+            print(f"  - Price: {entry_price}")
+            print(f"  - Product: {TRADING_PRODUCT}")
+            
+            order_id = kite.place_order(
+                variety=kite.VARIETY_REGULAR,
+                exchange=exchange,  # NFO for futures
+                tradingsymbol=tradingsymbol,
+                transaction_type=kite.TRANSACTION_TYPE_BUY if trade_type == 'BUY' else kite.TRANSACTION_TYPE_SELL,
+                quantity=TRADING_QUANTITY,  # 50 for 1 lot of NIFTY
+                price=round(entry_price, 2),  # Round to 2 decimal places
+                product=product,
+                order_type=kite.ORDER_TYPE_LIMIT,
+                validity=kite.VALIDITY_DAY
+            )
+            print(f"[LIVE TRADING] ✅ Order placed successfully: Order ID={order_id}")
+            return order_id
+        except Exception as e:
+            print(f"[LIVE TRADING] ❌ Error placing order: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    else:
+        # ========================================================================
+        # PAPER TRADING: Save to JSON file
+        # ========================================================================
+        try:
+            paper_trade = {
+                "trade_id": f"PT_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
+                "instrument_token": instrument_token,
+                "quantity": TRADING_QUANTITY,
+                "lots": TRADING_LOTS,
+                "transaction_type": trade_type,
+                "order_type": "LIMIT",
+                "product": TRADING_PRODUCT,
+                "price": entry_price,
+                "timestamp": datetime.now().isoformat(),
+                "status": "PAPER_TRADE_OPEN"
+            }
+            
+            filename = "paper_trades.json"
+            paper_trades = []
+            if os.path.exists(filename):
+                with open(filename, 'r') as f:
+                    try:
+                        paper_trades = json.load(f)
+                    except:
+                        paper_trades = []
+            
+            paper_trades.append(paper_trade)
+            
+            with open(filename, 'w') as f:
+                json.dump(paper_trades, f, indent=2)
+            
+            print(f"[PAPER TRADING] ✅ Trade saved to {filename}: {trade_type} @ {entry_price}")
+            return paper_trade['trade_id']
+        except Exception as e:
+            print(f"[PAPER TRADING] ❌ Error saving paper trade: {e}")
+            return None
 
 def check_trade_entry(current_candle, alert):
     """Check if we should enter a trade based on alert candle"""
-    global open_trade
+    global open_trade, instrument_token
     
+    # Risk management: Only 1 trade at a time
     if open_trade is not None:
-        return  # Already in a trade
-    
-    # Check range condition (high - low < 40)
-    candle_range = alert['high'] - alert['low']
-    if candle_range >= 40:
-        return  # Range too large, skip
+        print(f"[DEBUG] ⚠️  Cannot enter trade: Already have open trade: {open_trade['type']} @ {open_trade['entry_price']}")
+        return
     
     current_high = current_candle.get('high', 0)
     current_low = current_candle.get('low', 0)
     
+    print(f"[DEBUG] Checking trade entry: Alert={alert['alert_type']}, Alert High={alert['high']}, Alert Low={alert['low']}, Current High={current_high}, Current Low={current_low}")
+    
     if alert['alert_type'] == 'BUY':
-        # BUY when current candle crosses high of alert candle
+        # BUY when high of next candle crosses high of alert candle
         if current_high > alert['high']:
+            print(f"[DEBUG] ✅ BUY ENTRY CONDITION MET: Current High ({current_high}) > Alert High ({alert['high']})")
             open_trade = {
                 'type': 'BUY',
                 'alert_date': alert['date'],
@@ -318,15 +321,28 @@ def check_trade_entry(current_candle, alert):
                 'alert_rsi': alert['rsi'],
                 'entry_price': alert['high'],
                 'entry_date': current_candle['date'],
-                'stop_loss': alert['low'],
-                'target': alert['high'] + 10,
-                'status': 'OPEN'
+                'stop_loss': alert['low'],  # Stop Loss: Low of alert candle
+                'target': alert['high'] + 10,  # Target: +10 points
+                'status': 'OPEN',
+                'instrument_token': instrument_token
             }
-            print(f"BUY TRADE ENTERED: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
+            print(f"[TRADE ENTRY] 🟢 BUY TRADE ENTERED: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
+            
+            # Execute trade order
+            order_id = execute_trade_order('BUY', open_trade['entry_price'], instrument_token)
+            open_trade['order_id'] = order_id
+            
+            try:
+                send_trade_notification('ENTRY', open_trade)
+            except Exception as e:
+                print(f"[ERROR] Error sending trade entry email: {e}")
+        else:
+            print(f"[DEBUG] ⏳ BUY entry condition not met: Current High ({current_high}) <= Alert High ({alert['high']})")
     
     elif alert['alert_type'] == 'SELL':
-        # SELL when current candle crosses low of alert candle
+        # SELL when low of next candle crosses low of alert candle
         if current_low < alert['low']:
+            print(f"[DEBUG] ✅ SELL ENTRY CONDITION MET: Current Low ({current_low}) < Alert Low ({alert['low']})")
             open_trade = {
                 'type': 'SELL',
                 'alert_date': alert['date'],
@@ -335,11 +351,23 @@ def check_trade_entry(current_candle, alert):
                 'alert_rsi': alert['rsi'],
                 'entry_price': alert['low'],
                 'entry_date': current_candle['date'],
-                'stop_loss': alert['high'],
-                'target': alert['low'] - 10,
-                'status': 'OPEN'
+                'stop_loss': alert['high'],  # Stop Loss: High of alert candle
+                'target': alert['low'] - 10,  # Target: +10 points (downside)
+                'status': 'OPEN',
+                'instrument_token': instrument_token
             }
-            print(f"SELL TRADE ENTERED: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
+            print(f"[TRADE ENTRY] 🔴 SELL TRADE ENTERED: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
+            
+            # Execute trade order
+            order_id = execute_trade_order('SELL', open_trade['entry_price'], instrument_token)
+            open_trade['order_id'] = order_id
+            
+            try:
+                send_trade_notification('ENTRY', open_trade)
+            except Exception as e:
+                print(f"[ERROR] Error sending trade entry email: {e}")
+        else:
+            print(f"[DEBUG] ⏳ SELL entry condition not met: Current Low ({current_low}) >= Alert Low ({alert['low']})")
 
 def check_trade_exit(current_candle):
     """Check if we should exit the current trade (SL or Target)"""
@@ -350,133 +378,141 @@ def check_trade_exit(current_candle):
     
     high = current_candle.get('high', 0)
     low = current_candle.get('low', 0)
-    close = current_candle.get('close', 0)
+    
+    print(f"[DEBUG] Checking trade exit: Type={open_trade['type']}, Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}, Candle High={high}, Candle Low={low}")
     
     if open_trade['type'] == 'BUY':
-        # Check for stop loss or target
         if low <= open_trade['stop_loss']:
             # Stop loss hit
+            print(f"[DEBUG] 🛑 BUY STOP LOSS HIT: Candle Low ({low}) <= SL ({open_trade['stop_loss']})")
             open_trade['exit_price'] = open_trade['stop_loss']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
             open_trade['status'] = 'STOP_LOSS'
-            print(f"BUY TRADE EXIT - STOP LOSS: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-            # Write trade exit to sheet
-            rsi = calculate_rsi_from_candles(candles, period=14) if len(candles) >= 14 else None
-            write_tick_to_sheet({}, current_candle, rsi, trade=open_trade)
-            closed_trade = open_trade.copy()
+            print(f"[TRADE EXIT] 🔴 BUY TRADE EXIT - STOP LOSS: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            try:
+                send_trade_notification('EXIT', open_trade.copy())
+            except Exception as e:
+                print(f"[ERROR] Error sending trade exit email: {e}")
             open_trade = None
         elif high >= open_trade['target']:
             # Target hit
+            print(f"[DEBUG] 🎯 BUY TARGET HIT: Candle High ({high}) >= Target ({open_trade['target']})")
             open_trade['exit_price'] = open_trade['target']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
             open_trade['status'] = 'TARGET'
-            print(f"BUY TRADE EXIT - TARGET: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-            # Write trade exit to sheet
-            rsi = calculate_rsi_from_candles(candles, period=14) if len(candles) >= 14 else None
-            write_tick_to_sheet({}, current_candle, rsi, trade=open_trade)
-            closed_trade = open_trade.copy()
+            print(f"[TRADE EXIT] 🟢 BUY TRADE EXIT - TARGET: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            try:
+                send_trade_notification('EXIT', open_trade.copy())
+            except Exception as e:
+                print(f"[ERROR] Error sending trade exit email: {e}")
             open_trade = None
+        else:
+            print(f"[DEBUG] ⏳ BUY trade still open: Low ({low}) > SL ({open_trade['stop_loss']}) and High ({high}) < Target ({open_trade['target']})")
     
     elif open_trade['type'] == 'SELL':
-        # Check for stop loss or target
         if high >= open_trade['stop_loss']:
             # Stop loss hit
+            print(f"[DEBUG] 🛑 SELL STOP LOSS HIT: Candle High ({high}) >= SL ({open_trade['stop_loss']})")
             open_trade['exit_price'] = open_trade['stop_loss']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
             open_trade['status'] = 'STOP_LOSS'
-            print(f"SELL TRADE EXIT - STOP LOSS: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-            # Write trade exit to sheet
-            rsi = calculate_rsi_from_candles(candles, period=14) if len(candles) >= 14 else None
-            write_tick_to_sheet({}, current_candle, rsi, trade=open_trade)
-            closed_trade = open_trade.copy()
+            print(f"[TRADE EXIT] 🔴 SELL TRADE EXIT - STOP LOSS: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            try:
+                send_trade_notification('EXIT', open_trade.copy())
+            except Exception as e:
+                print(f"[ERROR] Error sending trade exit email: {e}")
             open_trade = None
         elif low <= open_trade['target']:
             # Target hit
+            print(f"[DEBUG] 🎯 SELL TARGET HIT: Candle Low ({low}) <= Target ({open_trade['target']})")
             open_trade['exit_price'] = open_trade['target']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
             open_trade['status'] = 'TARGET'
-            print(f"SELL TRADE EXIT - TARGET: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-            # Write trade exit to sheet
-            rsi = calculate_rsi_from_candles(candles, period=14) if len(candles) >= 14 else None
-            write_tick_to_sheet({}, current_candle, rsi, trade=open_trade)
-            closed_trade = open_trade.copy()
+            print(f"[TRADE EXIT] 🟢 SELL TRADE EXIT - TARGET: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            try:
+                send_trade_notification('EXIT', open_trade.copy())
+            except Exception as e:
+                print(f"[ERROR] Error sending trade exit email: {e}")
             open_trade = None
+        else:
+            print(f"[DEBUG] ⏳ SELL trade still open: High ({high}) < SL ({open_trade['stop_loss']}) and Low ({low}) > Target ({open_trade['target']})")
+
+def exit_trade_at_325(trade, exit_price, exit_time):
+    """Exit trade at 3:25 PM"""
+    global open_trade
+    
+    open_trade['exit_price'] = exit_price
+    open_trade['exit_date'] = exit_time
+    if open_trade['type'] == 'BUY':
+        open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
+    else:
+        open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
+    open_trade['status'] = 'EXIT_325'
+    print(f"TRADE EXIT - 3:25 PM: Type={open_trade['type']}, Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
+    try:
+        send_trade_notification('EXIT', open_trade.copy())
+    except Exception as e:
+        print(f"Error sending trade exit email: {e}")
+    open_trade = None
 
 def process_candle_complete(candle):
     """Process a completed 5-minute candle"""
     global pending_alert, current_candle, open_trade
     
-    # Skip first candle of day
+    # Rule 1: Skip first candle of day
     if is_first_candle_of_day(candle['date']):
         print(f"Skipping first candle of day: {candle['date']}")
         return
     
-    # Check if time is 3:25 PM or later - exit any open trade
+    # Time exit rule: At 3:25 PM, close all ongoing trades
     if is_after_325(candle['date']):
         if open_trade:
-            # Force exit at 3:25 PM
             close_price = candle.get('close', 0)
             if close_price > 0:
-                open_trade['exit_price'] = close_price
-                open_trade['exit_date'] = candle['date']
-                if open_trade['type'] == 'BUY':
-                    open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
-                else:
-                    open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
-                open_trade['status'] = 'EXIT_325'
-                print(f"TRADE EXIT - 3:25 PM: Type={open_trade['type']}, Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-                rsi = calculate_rsi_from_candles(candles, period=14) if len(candles) >= 14 else None
-                write_tick_to_sheet({}, candle, rsi, trade=open_trade)
-                open_trade = None
-        # Don't allow new trades after 3:25 PM
+                exit_trade_at_325(open_trade, close_price, candle['date'])
         pending_alert = None
         return
     
-    # Add to candles list (keep last 50 for RSI calculation)
+    # Add to candles list for RSI calculation
     candles.append(candle)
     if len(candles) > 50:
         candles.pop(0)
     
-    # Calculate RSI on completed 5-minute candle
+    # Calculate RSI
     rsi = calculate_rsi_from_candles(candles, period=14)
     
-    # Write completed 5-minute candle to sheet (only once per candle)
-    # Always write candle data, even if RSI is None (for first few candles)
-    if candle['open'] is not None:
-        print(f"Writing candle to sheet: {candle['date']}, Open={candle['open']}, RSI={rsi}")
-        write_tick_to_sheet({}, candle, rsi, trade=open_trade if open_trade else None)
-    else:
-        print(f"Warning: Candle open is None, skipping sheet write for {candle['date']}")
-    
+    # Rule 2: Mark alert candle when RSI > 60 or RSI < 40
     if rsi is not None:
-        # Check for alert candle (only if trading is allowed)
-        if should_allow_trading(candle['date']):
-            alert = check_alert_candle(candle, rsi)
-            if alert:
-                # Check range condition
-                candle_range = alert['high'] - alert['low']
-                if candle_range < 40:
-                    pending_alert = alert
-                    print(f"ALERT CANDLE: Type={alert['alert_type']}, RSI={alert['rsi']:.2f}, High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f}")
-                    # Write alert to sheet
-                    write_tick_to_sheet({}, candle, rsi, alert=alert)
+        alert = check_alert_candle(candle, rsi)
+        if alert:
+            # Rule 3: High - Low of alert candle should be less than 40 points
+            candle_range = alert['high'] - alert['low']
+            print(f"[DEBUG] Alert candle range check: High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f}")
+            if candle_range < 40:
+                pending_alert = alert
+                print(f"[ALERT] ✅ ALERT CANDLE VALIDATED: Type={alert['alert_type']}, RSI={alert['rsi']:.2f}, High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f} (< 40)")
+            else:
+                print(f"[ALERT] ❌ Alert candle REJECTED: Range={candle_range:.2f} >= 40 (too large)")
     
-    # Check for trade entry from pending alert (on previous candle) - only if trading allowed
-    if pending_alert and open_trade is None and should_allow_trading(candle['date']):
-        check_trade_entry(candle, pending_alert)
-        if open_trade:
-            # Write trade entry to sheet
-            write_tick_to_sheet({}, candle, rsi, alert=pending_alert, trade=open_trade)
-            pending_alert = None  # Alert used
+    # Rule 4 & 5: Check for trade entry from pending alert (next candle after alert)
+    if pending_alert:
+        if open_trade is None:
+            print(f"[DEBUG] Checking trade entry for pending alert: Type={pending_alert['alert_type']}, Alert High={pending_alert['high']}, Alert Low={pending_alert['low']}")
+            check_trade_entry(candle, pending_alert)
+            if open_trade:
+                pending_alert = None  # Alert used
+                print(f"[DEBUG] ✅ Trade entered, pending alert cleared")
+        else:
+            print(f"[DEBUG] ⚠️  Pending alert exists but trade already open, skipping entry check")
     
     # Check for trade exit on completed candle
     if open_trade:
+        print(f"[DEBUG] Checking trade exit on completed candle")
         check_trade_exit(candle)
-        # If trade was closed, it's already written in check_trade_exit
     
     # Store current candle for next tick processing
     current_candle = candle
@@ -490,35 +526,32 @@ def on_ticks(ws, ticks):
         if tick_token != instrument_token:
             continue
         
-        # Use exchange timestamp from tick (IST time from exchange)
+        # Get tick time
         tick_time = tick.get('exchange_timestamp') or tick.get('last_trade_time')
         if not tick_time:
             tick_time = datetime.now()
         
-        # Ensure tick_time is datetime object
+        # Convert to datetime if string
         if isinstance(tick_time, str):
             try:
                 tick_time = datetime.strptime(tick_time.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
             except:
                 tick_time = datetime.now()
         
-        # Round down to 5-minute interval (e.g., 14:12 -> 14:10, 14:17 -> 14:15, 14:22 -> 14:20)
-        # This ensures candles align to :00, :05, :10, :15, :20, :25, :30, :35, :40, :45, :50, :55
+        # Round down to 5-minute interval
         candle_start_time = tick_time.replace(second=0, microsecond=0)
         candle_start_time = candle_start_time.replace(minute=(candle_start_time.minute // interval_minutes) * interval_minutes)
         
-        # Determine candle start time (round down to 5-minute interval)
+        # Initialize first candle
         if current_candle_start is None:
-            # Start of new candle
             current_candle_start = candle_start_time
             current_candle = initialize_candle(current_candle_start)
             print(f"New 5-minute candle started: {current_candle_start.strftime('%H:%M')}")
         
-        # Check if we need to start a new candle (when tick time crosses into next 5-minute interval)
-        # Example: if current candle is 14:10-14:15, and tick is at 14:15 or later, start new candle
+        # Check if we need to start a new candle
         candle_end = current_candle_start + timedelta(minutes=interval_minutes)
         if tick_time >= candle_end:
-            # Process completed 5-minute candle
+            # Process completed candle
             if current_candle['open'] is not None:
                 print(f"5-minute candle completed: {current_candle_start.strftime('%H:%M')} - {candle_end.strftime('%H:%M')}, OHLC: O={current_candle.get('open')}, H={current_candle.get('high')}, L={current_candle.get('low')}, C={current_candle.get('close')}")
                 process_candle_complete(current_candle)
@@ -531,69 +564,62 @@ def on_ticks(ws, ticks):
         # Update current candle with tick
         current_candle = update_candle_with_tick(current_candle, tick)
         
-        # Check if time is 3:25 PM or later - exit any open trade
+        # Time exit rule: At 3:25 PM, close all ongoing trades
         if open_trade and is_after_325(tick_time):
-            # Force exit at 3:25 PM
             price = tick.get('last_price', 0)
             if price > 0:
-                open_trade['exit_price'] = price
-                open_trade['exit_date'] = tick_time
-                if open_trade['type'] == 'BUY':
-                    open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
-                else:
-                    open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
-                open_trade['status'] = 'EXIT_325'
-                print(f"TRADE EXIT - 3:25 PM (TICK): Type={open_trade['type']}, Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-                # Note: Trade exit will be written when current candle completes
-                closed_trade = open_trade.copy()
-                open_trade = None
+                exit_trade_at_325(open_trade, price, tick_time)
         
-        # Check for trade exit on current tick (for real-time SL/Target)
+        # Check for trade exit on current tick (real-time SL/Target)
         if open_trade:
             price = tick.get('last_price', 0)
             if price > 0:
                 if open_trade['type'] == 'BUY':
                     if price <= open_trade['stop_loss']:
-                        # Stop loss hit
                         open_trade['exit_price'] = open_trade['stop_loss']
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
                         open_trade['status'] = 'STOP_LOSS'
                         print(f"BUY TRADE EXIT - STOP LOSS (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-                        # Note: Trade exit will be written when current candle completes
-                        closed_trade = open_trade.copy()
+                        try:
+                            send_trade_notification('EXIT', open_trade.copy())
+                        except Exception as e:
+                            print(f"Error sending trade exit email: {e}")
                         open_trade = None
                     elif price >= open_trade['target']:
-                        # Target hit
                         open_trade['exit_price'] = open_trade['target']
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
                         open_trade['status'] = 'TARGET'
                         print(f"BUY TRADE EXIT - TARGET (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-                        # Note: Trade exit will be written when current candle completes
-                        closed_trade = open_trade.copy()
+                        try:
+                            send_trade_notification('EXIT', open_trade.copy())
+                        except Exception as e:
+                            print(f"Error sending trade exit email: {e}")
                         open_trade = None
                 
                 elif open_trade['type'] == 'SELL':
                     if price >= open_trade['stop_loss']:
-                        # Stop loss hit
                         open_trade['exit_price'] = open_trade['stop_loss']
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
                         open_trade['status'] = 'STOP_LOSS'
                         print(f"SELL TRADE EXIT - STOP LOSS (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-                        # Note: Trade exit will be written when current candle completes
-                        closed_trade = open_trade.copy()
+                        try:
+                            send_trade_notification('EXIT', open_trade.copy())
+                        except Exception as e:
+                            print(f"Error sending trade exit email: {e}")
                         open_trade = None
                     elif price <= open_trade['target']:
-                        # Target hit
                         open_trade['exit_price'] = open_trade['target']
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
                         open_trade['status'] = 'TARGET'
                         print(f"SELL TRADE EXIT - TARGET (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
-                        # Note: Trade exit will be written when current candle completes
-                        closed_trade = open_trade.copy()
+                        try:
+                            send_trade_notification('EXIT', open_trade.copy())
+                        except Exception as e:
+                            print(f"Error sending trade exit email: {e}")
                         open_trade = None
 
 def on_connect(ws, response):
@@ -601,8 +627,7 @@ def on_connect(ws, response):
     global instrument_token
     print(f"WebSocket connected: {response}")
     
-    # Get instrument token from environment or use default
-    instrument_token = int(os.getenv("INSTRUMENT_TOKEN", "12683010"))  # Default to nearest NIFTY future
+    instrument_token = int(os.getenv("INSTRUMENT_TOKEN", "12683010"))
     
     ws.subscribe([instrument_token])
     ws.set_mode(ws.MODE_FULL, [instrument_token])
@@ -615,9 +640,9 @@ def on_close(ws, code, reason):
 
 def start_websocket_server():
     """Start the websocket server with trading strategy"""
-    api_key = os.getenv("API_KEY")
+    global kite
     
-    # Get access_token.txt path (in project root)
+    api_key = os.getenv("API_KEY")
     access_token_path = os.path.join(PROJECT_ROOT, "access_token.txt")
     access_token = read_from_file(access_token_path)
     
@@ -626,24 +651,33 @@ def start_websocket_server():
     if not access_token:
         raise ValueError("Access token not found. Please login first.")
     
-    # Initialize Google Sheets
-    if not init_google_sheets():
-        print("Warning: Google Sheets not initialized. Continuing without sheet logging.")
+    # Initialize KiteConnect for live trading
+    if LIVE_TRADING:
+        print("[INIT] 🔴 LIVE TRADING MODE ENABLED - Real orders will be placed!")
+        kite = KiteConnect(api_key=api_key)
+        kite.set_access_token(access_token.strip())
+        print("[INIT] ✅ KiteConnect initialized for live trading")
+    else:
+        print("[INIT] 📝 PAPER TRADING MODE - Trades will be saved to paper_trades.json")
+        print("[INIT] ⚠️  To enable live trading, set LIVE_TRADING = True at the top of websocket_server.py")
     
     kws = KiteTicker(api_key, access_token.strip())
     kws.on_ticks = on_ticks
     kws.on_connect = on_connect
     kws.on_close = on_close
     
-    print("Starting WebSocket server with RSI trading strategy...")
+    print(f"[INIT] Starting WebSocket server with RSI trading strategy...")
+    print(f"[INIT] Trading Configuration:")
+    print(f"  - Lots: {TRADING_LOTS} lot(s)")
+    print(f"  - Quantity: {TRADING_QUANTITY} shares (1 lot = 50 shares for NIFTY)")
+    print(f"  - Product: {TRADING_PRODUCT} ({'Intraday' if TRADING_PRODUCT == 'MIS' else 'Overnight' if TRADING_PRODUCT == 'NRML' else 'Unknown'})")
+    print(f"  - Mode: {'🔴 LIVE TRADING' if LIVE_TRADING else '📝 PAPER TRADING'}")
     kws.connect()
     return kws
 
 if __name__ == "__main__":
-    # Run websocket server standalone
     kws = start_websocket_server()
     try:
-        # Keep the connection alive
         import time
         while True:
             time.sleep(1)
