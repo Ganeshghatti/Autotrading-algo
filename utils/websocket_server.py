@@ -6,6 +6,9 @@ import os
 import sys
 from dotenv import load_dotenv
 import json
+import signal
+import atexit
+from utils.email_utils import send_trade_notification
 
 # Get project root directory (parent of utils folder)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -13,8 +16,6 @@ PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
 # Add project root to path for imports
 sys.path.insert(0, PROJECT_ROOT)
-
-from utils.email_utils import send_trade_notification
 
 # ============================================================================
 # TRADING MODE CONFIGURATION
@@ -49,7 +50,7 @@ env_path = os.path.join(PROJECT_ROOT, '.env')
 load_dotenv(env_path)
 
 # Global state for trading strategy
-candles = []  # Store OHLC candles for RSI calculation
+candles = []  # Store OHLC candles for RSI calculation (loaded from file on startup)
 open_trade = None  # Current open trade (only 1 trade at a time)
 pending_alert = None  # Alert candle waiting for next candle to check entry
 current_candle = None  # Current 5-minute candle being built
@@ -57,6 +58,7 @@ current_candle_start = None  # Start time of current candle
 instrument_token = None
 interval_minutes = 5  # 5-minute candles
 kite = None  # KiteConnect instance for live trading
+CANDLES_FILE = os.path.join(PROJECT_ROOT, "candles_data.json")  # File to store candles
 
 def initialize_candle(tick_time):
     """Initialize a new candle"""
@@ -115,6 +117,79 @@ def update_candle_with_tick(candle, tick):
         candle['volume'] += tick.get('volume', 0)
     
     return candle
+
+def serialize_candle(candle):
+    """Convert candle datetime objects to strings for JSON storage"""
+    serialized = candle.copy()
+    if isinstance(serialized.get('date'), datetime):
+        serialized['date'] = serialized['date'].isoformat()
+    if isinstance(serialized.get('timestamp'), datetime):
+        serialized['timestamp'] = serialized['timestamp'].isoformat()
+    return serialized
+
+def deserialize_candle(candle_dict):
+    """Convert candle string dates back to datetime objects"""
+    deserialized = candle_dict.copy()
+    if isinstance(deserialized.get('date'), str):
+        try:
+            deserialized['date'] = datetime.fromisoformat(deserialized['date'])
+        except:
+            try:
+                deserialized['date'] = datetime.strptime(deserialized['date'].split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
+            except:
+                deserialized['date'] = datetime.now()
+    if isinstance(deserialized.get('timestamp'), str):
+        try:
+            deserialized['timestamp'] = datetime.fromisoformat(deserialized['timestamp'])
+        except:
+            try:
+                deserialized['timestamp'] = datetime.strptime(deserialized['timestamp'].split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
+            except:
+                deserialized['timestamp'] = datetime.now()
+    return deserialized
+
+def load_candles_from_file():
+    """Load candles from JSON file"""
+    global candles
+    
+    if not os.path.exists(CANDLES_FILE):
+        print(f"[INIT] Candles file not found, starting with empty candles list")
+        candles = []
+        return
+    
+    try:
+        with open(CANDLES_FILE, 'r') as f:
+            candles_data = json.load(f)
+            candles = [deserialize_candle(c) for c in candles_data]
+            # Keep only last 50 candles in memory for RSI calculation
+            if len(candles) > 50:
+                candles = candles[-50:]
+            print(f"[INIT] ✅ Loaded {len(candles)} candles from {CANDLES_FILE}")
+    except Exception as e:
+        print(f"[ERROR] Error loading candles from file: {e}")
+        candles = []
+        import traceback
+        traceback.print_exc()
+
+def save_candles_to_file():
+    """Save candles to JSON file (keep last 50 for RSI calculation)"""
+    global candles
+    
+    try:
+        # Keep only last 50 candles to save
+        candles_to_save = candles[-50:] if len(candles) > 50 else candles
+        
+        # Serialize candles (convert datetime to string)
+        serialized_candles = [serialize_candle(c) for c in candles_to_save]
+        
+        with open(CANDLES_FILE, 'w') as f:
+            json.dump(serialized_candles, f, indent=2)
+        
+        print(f"[SAVE] 💾 Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
+    except Exception as e:
+        print(f"[ERROR] Error saving candles to file: {e}")
+        import traceback
+        traceback.print_exc()
 
 def calculate_rsi_from_candles(candles_list, period=14):
     """Calculate RSI using TA-Lib from candle list"""
@@ -480,7 +555,10 @@ def process_candle_complete(candle):
     # Add to candles list for RSI calculation
     candles.append(candle)
     if len(candles) > 50:
-        candles.pop(0)
+        candles.pop(0)  # Keep only last 50 in memory
+    
+    # Save candles to file after each candle completion
+    save_candles_to_file()
     
     # Calculate RSI
     rsi = calculate_rsi_from_candles(candles, period=14)
@@ -651,6 +729,10 @@ def start_websocket_server():
     if not access_token:
         raise ValueError("Access token not found. Please login first.")
     
+    # Load candles from file on startup
+    print("[INIT] Loading candles from file...")
+    load_candles_from_file()
+    
     # Initialize KiteConnect for live trading
     if LIVE_TRADING:
         print("[INIT] 🔴 LIVE TRADING MODE ENABLED - Real orders will be placed!")
@@ -672,15 +754,34 @@ def start_websocket_server():
     print(f"  - Quantity: {TRADING_QUANTITY} shares (1 lot = 50 shares for NIFTY)")
     print(f"  - Product: {TRADING_PRODUCT} ({'Intraday' if TRADING_PRODUCT == 'MIS' else 'Overnight' if TRADING_PRODUCT == 'NRML' else 'Unknown'})")
     print(f"  - Mode: {'🔴 LIVE TRADING' if LIVE_TRADING else '📝 PAPER TRADING'}")
+    print(f"  - Candles Storage: {CANDLES_FILE} ({len(candles)} candles loaded)")
     kws.connect()
     return kws
 
+def cleanup_on_exit():
+    """Save candles before exiting"""
+    print("\n[SHUTDOWN] Saving candles before exit...")
+    save_candles_to_file()
+    print("[SHUTDOWN] ✅ Candles saved successfully")
+
+def signal_handler(sig, frame):
+    """Handle shutdown signals"""
+    print("\n[SHUTDOWN] Received shutdown signal...")
+    cleanup_on_exit()
+    sys.exit(0)
+
 if __name__ == "__main__":
+    # Register cleanup handlers
+    atexit.register(cleanup_on_exit)
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     kws = start_websocket_server()
     try:
         import time
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("Stopping WebSocket server...")
+        print("\n[SHUTDOWN] Stopping WebSocket server...")
+        cleanup_on_exit()
         kws.close()
