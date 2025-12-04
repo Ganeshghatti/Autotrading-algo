@@ -9,6 +9,8 @@ import json
 import signal
 import atexit
 import logging
+import time
+import threading
 
 # Get project root directory (parent of utils folder)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -75,6 +77,10 @@ interval_minutes = 5  # 5-minute candles
 kite = None  # KiteConnect instance for live trading
 CANDLES_FILE = os.path.join(PROJECT_ROOT, "candles_data.json")  # File to store candles
 LOG_FILE = os.path.join(PROJECT_ROOT, "websocket_server.log")  # Log file
+kws = None  # KiteTicker instance
+reconnect_interval = 600  # 10 minutes in seconds
+should_reconnect = True  # Flag to control reconnection
+reconnect_thread = None  # Thread for reconnection
 
 # Setup logging to both file and console
 logging.basicConfig(
@@ -733,23 +739,123 @@ def on_ticks(ws, ticks):
 
 def on_connect(ws, response):
     """Handle websocket connection"""
-    global instrument_token
-    logger.info(f"WebSocket connected: {response}")
+    global instrument_token, reconnect_thread
+    
+    logger.info(f"✅ WebSocket connected successfully: {response} at {format_time(datetime.now())}")
+    
+    # Connection successful, we can stop any reconnection attempts
+    # (The thread will naturally stop on next iteration if should_reconnect is False)
     
     instrument_token = int(os.getenv("INSTRUMENT_TOKEN", "12683010"))
     
-    ws.subscribe([instrument_token])
-    ws.set_mode(ws.MODE_FULL, [instrument_token])
-    logger.info(f"Subscribed to instrument_token: {instrument_token} at {format_time(datetime.now())}")
+    try:
+        ws.subscribe([instrument_token])
+        ws.set_mode(ws.MODE_FULL, [instrument_token])
+        logger.info(f"✅ Subscribed to instrument_token: {instrument_token} at {format_time(datetime.now())}")
+        logger.info("✅ WebSocket connection fully established and ready for trading")
+    except Exception as e:
+        logger.error(f"❌ Error subscribing to instrument: {e}")
 
 def on_close(ws, code, reason):
     """Handle websocket close"""
-    logger.warning(f"WebSocket closed: {code} - {reason} at {format_time(datetime.now())}")
-    ws.stop()
+    logger.warning(f"⚠️  WebSocket closed: code={code}, reason={reason} at {format_time(datetime.now())}")
+    
+    # Trigger reconnection if we should reconnect
+    if should_reconnect:
+        logger.info(f"🔄 Connection lost. Will attempt to reconnect in {reconnect_interval // 60} minutes...")
+        # Start reconnection thread if not already running
+        start_reconnect_thread()
+    else:
+        ws.stop()
+
+def on_error(ws, code, reason):
+    """Handle websocket errors"""
+    logger.error(f"❌ WebSocket error: code={code}, reason={reason} at {format_time(datetime.now())}")
+    
+    # Trigger reconnection if needed
+    if should_reconnect:
+        logger.info(f"🔄 Error detected. Will attempt to reconnect in {reconnect_interval // 60} minutes...")
+        start_reconnect_thread()
+
+def reconnect_websocket():
+    """Reconnect to websocket with retry logic"""
+    global kws, should_reconnect, reconnect_thread
+    
+    # Wait for the reconnect interval before attempting
+    logger.info(f"⏳ Waiting {reconnect_interval // 60} minutes before reconnection attempt...")
+    time.sleep(reconnect_interval)
+    
+    if not should_reconnect:
+        logger.info("🛑 Reconnection cancelled (should_reconnect=False)")
+        return
+    
+    while should_reconnect:
+        try:
+            logger.info(f"🔄 Attempting to reconnect WebSocket at {format_time(datetime.now())}...")
+            
+            api_key = os.getenv("API_KEY")
+            access_token_path = os.path.join(PROJECT_ROOT, "access_token.txt")
+            access_token = read_from_file(access_token_path)
+            
+            if not api_key or not access_token:
+                logger.error("❌ Missing API credentials, cannot reconnect")
+                logger.info(f"🔄 Will retry again in {reconnect_interval // 60} minutes...")
+                time.sleep(reconnect_interval)
+                continue
+            
+            # Close existing connection if any
+            if kws:
+                try:
+                    kws.close()
+                except:
+                    pass
+            
+            # Create new KiteTicker instance
+            kws = KiteTicker(api_key, access_token.strip())
+            kws.on_ticks = on_ticks
+            kws.on_connect = on_connect
+            kws.on_close = on_close
+            kws.on_error = on_error
+            
+            # Attempt to connect
+            kws.connect(threaded=True)
+            logger.info("✅ Reconnection attempt initiated, waiting for connection confirmation...")
+            
+            # Wait a bit to see if connection succeeds
+            # If on_connect is called, it means connection was successful
+            time.sleep(10)
+            
+            # If we get here and should_reconnect is still True, 
+            # it means connection might have failed, so we'll retry
+            # But we'll wait for the next interval
+            if should_reconnect:
+                logger.info(f"🔄 Connection may have failed. Will retry again in {reconnect_interval // 60} minutes...")
+                time.sleep(reconnect_interval)
+            else:
+                break
+            
+        except Exception as e:
+            logger.error(f"❌ Reconnection failed: {e}")
+            logger.info(f"🔄 Will retry again in {reconnect_interval // 60} minutes...")
+            time.sleep(reconnect_interval)
+    
+    logger.info("🛑 Reconnection loop stopped (should_reconnect=False)")
+
+def start_reconnect_thread():
+    """Start reconnection thread (only if not already running)"""
+    global reconnect_thread, should_reconnect
+    
+    if reconnect_thread is None or not reconnect_thread.is_alive():
+        should_reconnect = True
+        reconnect_thread = threading.Thread(target=reconnect_websocket, daemon=True)
+        reconnect_thread.start()
+        logger.info("🔄 Reconnection thread started")
+    else:
+        logger.debug("🔄 Reconnection thread already running")
 
 def start_websocket_server():
     """Start the websocket server with trading strategy"""
-    global kite
+    global kite, kws
     
     api_key = os.getenv("API_KEY")
     access_token_path = os.path.join(PROJECT_ROOT, "access_token.txt")
@@ -774,11 +880,6 @@ def start_websocket_server():
         logger.info("[INIT] 📝 PAPER TRADING MODE - Trades will be saved to paper_trades.json")
         logger.info("[INIT] ⚠️  To enable live trading, set LIVE_TRADING = True at the top of websocket_server.py")
     
-    kws = KiteTicker(api_key, access_token.strip())
-    kws.on_ticks = on_ticks
-    kws.on_connect = on_connect
-    kws.on_close = on_close
-    
     logger.info(f"[INIT] Starting WebSocket server with RSI trading strategy at {format_time(datetime.now())}")
     logger.info(f"[INIT] Trading Configuration:")
     logger.info(f"  - Lots: {TRADING_LOTS} lot(s)")
@@ -787,14 +888,45 @@ def start_websocket_server():
     logger.info(f"  - Mode: {'🔴 LIVE TRADING' if LIVE_TRADING else '📝 PAPER TRADING'}")
     logger.info(f"  - Candles Storage: {CANDLES_FILE} ({len(candles)} candles loaded)")
     logger.info(f"  - Log File: {LOG_FILE}")
-    kws.connect()
+    logger.info(f"  - Reconnection: Enabled (retry every {reconnect_interval // 60} minutes on failure)")
+    
+    # Create and connect WebSocket
+    try:
+        kws = KiteTicker(api_key, access_token.strip())
+        kws.on_ticks = on_ticks
+        kws.on_connect = on_connect
+        kws.on_close = on_close
+        kws.on_error = on_error
+        
+        logger.info("🔄 Attempting to connect to Kite WebSocket...")
+        kws.connect(threaded=True)
+        logger.info("✅ WebSocket connection initiated")
+        logger.info("ℹ️  If connection fails, automatic reconnection will be attempted every 10 minutes")
+        
+    except Exception as e:
+        logger.error(f"❌ Error starting WebSocket: {e}")
+        logger.info(f"🔄 Will attempt to reconnect in {reconnect_interval // 60} minutes...")
+        # Start reconnection thread to handle retry
+        start_reconnect_thread()
+    
     return kws
 
 def cleanup_on_exit():
     """Save candles before exiting"""
+    global should_reconnect, kws
+    
     logger.info(f"[SHUTDOWN] Saving candles before exit at {format_time(datetime.now())}...")
+    should_reconnect = False  # Stop reconnection attempts
     save_candles_to_file()
-    logger.info("[SHUTDOWN] ✅ Candles saved successfully")
+    
+    # Close websocket connection
+    if kws:
+        try:
+            kws.close()
+        except:
+            pass
+    
+    logger.info("[SHUTDOWN] ✅ Candles saved successfully, WebSocket closed")
 
 def signal_handler(sig, frame):
     """Handle shutdown signals"""
@@ -808,12 +940,25 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    kws = start_websocket_server()
     try:
-        import time
+        kws = start_websocket_server()
+        
+        # Keep the main thread alive and monitor connection
+        logger.info("🟢 WebSocket server running. Monitoring connection...")
         while True:
-            time.sleep(1)
+            time.sleep(10)  # Check every 10 seconds
+            
+            # Check if websocket is still connected
+            # Note: KiteTicker doesn't expose connection status directly
+            # The on_close callback will handle reconnection
+            
     except KeyboardInterrupt:
-        print("\n[SHUTDOWN] Stopping WebSocket server...")
+        logger.info("\n[SHUTDOWN] Stopping WebSocket server...")
         cleanup_on_exit()
-        kws.close()
+    except Exception as e:
+        logger.error(f"❌ Fatal error in main loop: {e}")
+        logger.info("🔄 Will attempt to reconnect...")
+        cleanup_on_exit()
+        # Restart after a delay
+        time.sleep(reconnect_interval)
+        # The reconnection thread will handle retry

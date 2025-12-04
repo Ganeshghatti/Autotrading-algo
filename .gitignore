@@ -16,3 +16,5 @@ __pycache__/
 .env.test.local
 .env.production.local
 credentials.json
+websocket_server.log
+candles_data.json
