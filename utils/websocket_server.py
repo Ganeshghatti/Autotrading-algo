@@ -1,5 +1,5 @@
 from kiteconnect import KiteTicker, KiteConnect
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import talib
 import numpy as np
 import os
@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import json
 import signal
 import atexit
+import logging
 
 # Get project root directory (parent of utils folder)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -73,6 +74,40 @@ instrument_token = None
 interval_minutes = 5  # 5-minute candles
 kite = None  # KiteConnect instance for live trading
 CANDLES_FILE = os.path.join(PROJECT_ROOT, "candles_data.json")  # File to store candles
+LOG_FILE = os.path.join(PROJECT_ROOT, "websocket_server.log")  # Log file
+
+# Timezone configuration - IST is UTC+5:30
+IST = timezone(timedelta(hours=5, minutes=30))
+
+# Setup logging to both file and console
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def get_ist_time():
+    """Get current time in IST (UTC+5:30)"""
+    return datetime.now(IST)
+
+def utc_to_ist(utc_time):
+    """Convert UTC datetime to IST"""
+    if utc_time.tzinfo is None:
+        # Assume it's UTC if no timezone info
+        utc_time = utc_time.replace(tzinfo=timezone.utc)
+    return utc_time.astimezone(IST)
+
+def format_ist_time(dt):
+    """Format datetime in IST with timezone info"""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=IST)
+    elif dt.tzinfo != IST:
+        dt = dt.astimezone(IST)
+    return dt.strftime('%Y-%m-%d %H:%M:%S IST')
 
 def initialize_candle(tick_time):
     """Initialize a new candle"""
@@ -167,7 +202,7 @@ def load_candles_from_file():
     global candles
     
     if not os.path.exists(CANDLES_FILE):
-        print(f"[INIT] Candles file not found, starting with empty candles list")
+        logger.info("Candles file not found, starting with empty candles list")
         candles = []
         return
     
@@ -178,9 +213,9 @@ def load_candles_from_file():
             # Keep only last 50 candles in memory for RSI calculation
             if len(candles) > 50:
                 candles = candles[-50:]
-            print(f"[INIT] ✅ Loaded {len(candles)} candles from {CANDLES_FILE}")
+            logger.info(f"✅ Loaded {len(candles)} candles from {CANDLES_FILE}")
     except Exception as e:
-        print(f"[ERROR] Error loading candles from file: {e}")
+        logger.error(f"Error loading candles from file: {e}")
         candles = []
         import traceback
         traceback.print_exc()
@@ -199,9 +234,9 @@ def save_candles_to_file():
         with open(CANDLES_FILE, 'w') as f:
             json.dump(serialized_candles, f, indent=2)
         
-        print(f"[SAVE] 💾 Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
+        logger.debug(f"💾 Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
     except Exception as e:
-        print(f"[ERROR] Error saving candles to file: {e}")
+        logger.error(f"Error saving candles to file: {e}")
         import traceback
         traceback.print_exc()
 
@@ -229,12 +264,22 @@ def calculate_rsi_from_candles(candles_list, period=14):
 def is_first_candle_of_day(candle_time):
     """Check if this is the first candle of the trading day (9:15 AM IST)"""
     if isinstance(candle_time, datetime):
+        # Convert to IST if needed
+        if candle_time.tzinfo is None:
+            candle_time = candle_time.replace(tzinfo=IST)
+        elif candle_time.tzinfo != IST:
+            candle_time = candle_time.astimezone(IST)
         return candle_time.hour == 9 and candle_time.minute == 15
     return False
 
 def is_after_325(candle_time):
-    """Check if time is 3:25 PM or later (15:25)"""
+    """Check if time is 3:25 PM or later (15:25 IST)"""
     if isinstance(candle_time, datetime):
+        # Convert to IST if needed
+        if candle_time.tzinfo is None:
+            candle_time = candle_time.replace(tzinfo=IST)
+        elif candle_time.tzinfo != IST:
+            candle_time = candle_time.astimezone(IST)
         return candle_time.hour > 15 or (candle_time.hour == 15 and candle_time.minute >= 25)
     return False
 
@@ -293,7 +338,7 @@ def get_tradingsymbol_from_token(instrument_token):
         print(f"[ERROR] Could not find tradingsymbol for instrument_token: {instrument_token}")
         return None, None
     except Exception as e:
-        print(f"[ERROR] Error fetching instruments: {e}")
+        logger.error(f"Error fetching instruments: {e}")
         import traceback
         traceback.print_exc()
         return None, None
@@ -342,7 +387,7 @@ def execute_trade_order(trade_type, entry_price, instrument_token):
             print(f"[LIVE TRADING] ✅ Order placed successfully: Order ID={order_id}")
             return order_id
         except Exception as e:
-            print(f"[LIVE TRADING] ❌ Error placing order: {e}")
+            logger.error(f"[LIVE TRADING] ❌ Error placing order: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -381,7 +426,7 @@ def execute_trade_order(trade_type, entry_price, instrument_token):
             print(f"[PAPER TRADING] ✅ Trade saved to {filename}: {trade_type} @ {entry_price}")
             return paper_trade['trade_id']
         except Exception as e:
-            print(f"[PAPER TRADING] ❌ Error saving paper trade: {e}")
+            logger.error(f"[PAPER TRADING] ❌ Error saving paper trade: {e}")
             return None
 
 def check_trade_entry(current_candle, alert):
@@ -415,7 +460,7 @@ def check_trade_entry(current_candle, alert):
                 'status': 'OPEN',
                 'instrument_token': instrument_token
             }
-            print(f"[TRADE ENTRY] 🟢 BUY TRADE ENTERED: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
+            logger.info(f"[TRADE ENTRY] 🟢 BUY TRADE ENTERED at {format_ist_time(get_ist_time())}: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
             
             # Execute trade order
             order_id = execute_trade_order('BUY', open_trade['entry_price'], instrument_token)
@@ -424,7 +469,7 @@ def check_trade_entry(current_candle, alert):
             try:
                 send_trade_notification('ENTRY', open_trade)
             except Exception as e:
-                print(f"[ERROR] Error sending trade entry email: {e}")
+                logger.error(f"Error sending trade entry email: {e}")
         else:
             print(f"[DEBUG] ⏳ BUY entry condition not met: Current High ({current_high}) <= Alert High ({alert['high']})")
     
@@ -445,7 +490,7 @@ def check_trade_entry(current_candle, alert):
                 'status': 'OPEN',
                 'instrument_token': instrument_token
             }
-            print(f"[TRADE ENTRY] 🔴 SELL TRADE ENTERED: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
+            logger.info(f"[TRADE ENTRY] 🔴 SELL TRADE ENTERED at {format_ist_time(get_ist_time())}: Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}")
             
             # Execute trade order
             order_id = execute_trade_order('SELL', open_trade['entry_price'], instrument_token)
@@ -454,7 +499,7 @@ def check_trade_entry(current_candle, alert):
             try:
                 send_trade_notification('ENTRY', open_trade)
             except Exception as e:
-                print(f"[ERROR] Error sending trade entry email: {e}")
+                logger.error(f"Error sending trade entry email: {e}")
         else:
             print(f"[DEBUG] ⏳ SELL entry condition not met: Current Low ({current_low}) >= Alert Low ({alert['low']})")
 
@@ -478,7 +523,7 @@ def check_trade_exit(current_candle):
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
             open_trade['status'] = 'STOP_LOSS'
-            print(f"[TRADE EXIT] 🔴 BUY TRADE EXIT - STOP LOSS: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            logger.info(f"[TRADE EXIT] 🔴 BUY TRADE EXIT - STOP LOSS at {format_ist_time(get_ist_time())}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
@@ -491,7 +536,7 @@ def check_trade_exit(current_candle):
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
             open_trade['status'] = 'TARGET'
-            print(f"[TRADE EXIT] 🟢 BUY TRADE EXIT - TARGET: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            logger.info(f"[TRADE EXIT] 🟢 BUY TRADE EXIT - TARGET at {format_ist_time(get_ist_time())}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
@@ -508,7 +553,7 @@ def check_trade_exit(current_candle):
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
             open_trade['status'] = 'STOP_LOSS'
-            print(f"[TRADE EXIT] 🔴 SELL TRADE EXIT - STOP LOSS: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            logger.info(f"[TRADE EXIT] 🔴 SELL TRADE EXIT - STOP LOSS at {format_ist_time(get_ist_time())}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
@@ -521,7 +566,7 @@ def check_trade_exit(current_candle):
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
             open_trade['status'] = 'TARGET'
-            print(f"[TRADE EXIT] 🟢 SELL TRADE EXIT - TARGET: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
+            logger.info(f"[TRADE EXIT] 🟢 SELL TRADE EXIT - TARGET at {format_ist_time(get_ist_time())}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
@@ -541,11 +586,11 @@ def exit_trade_at_325(trade, exit_price, exit_time):
     else:
         open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
     open_trade['status'] = 'EXIT_325'
-    print(f"TRADE EXIT - 3:25 PM: Type={open_trade['type']}, Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
+    logger.info(f"TRADE EXIT - 3:25 PM IST at {format_ist_time(get_ist_time())}: Type={open_trade['type']}, Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
     try:
         send_trade_notification('EXIT', open_trade.copy())
     except Exception as e:
-        print(f"Error sending trade exit email: {e}")
+        logger.error(f"Error sending trade exit email: {e}")
     open_trade = None
 
 def process_candle_complete(candle):
@@ -554,7 +599,7 @@ def process_candle_complete(candle):
     
     # Rule 1: Skip first candle of day
     if is_first_candle_of_day(candle['date']):
-        print(f"Skipping first candle of day: {candle['date']}")
+        logger.info(f"Skipping first candle of day: {format_ist_time(candle['date'])}")
         return
     
     # Time exit rule: At 3:25 PM, close all ongoing trades
@@ -586,7 +631,7 @@ def process_candle_complete(candle):
             print(f"[DEBUG] Alert candle range check: High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f}")
             if candle_range < 40:
                 pending_alert = alert
-                print(f"[ALERT] ✅ ALERT CANDLE VALIDATED: Type={alert['alert_type']}, RSI={alert['rsi']:.2f}, High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f} (< 40)")
+                logger.info(f"[ALERT] ✅ ALERT CANDLE VALIDATED at {format_ist_time(get_ist_time())}: Type={alert['alert_type']}, RSI={alert['rsi']:.2f}, High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f} (< 40)")
             else:
                 print(f"[ALERT] ❌ Alert candle REJECTED: Range={candle_range:.2f} >= 40 (too large)")
     
@@ -618,17 +663,25 @@ def on_ticks(ws, ticks):
         if tick_token != instrument_token:
             continue
         
-        # Get tick time
+        # Get tick time (Kite sends time in IST)
         tick_time = tick.get('exchange_timestamp') or tick.get('last_trade_time')
         if not tick_time:
-            tick_time = datetime.now()
+            tick_time = get_ist_time()
         
         # Convert to datetime if string
         if isinstance(tick_time, str):
             try:
+                # Parse and assume IST timezone
                 tick_time = datetime.strptime(tick_time.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
+                tick_time = tick_time.replace(tzinfo=IST)
             except:
-                tick_time = datetime.now()
+                tick_time = get_ist_time()
+        elif isinstance(tick_time, datetime):
+            # Ensure timezone is IST
+            if tick_time.tzinfo is None:
+                tick_time = tick_time.replace(tzinfo=IST)
+            elif tick_time.tzinfo != IST:
+                tick_time = tick_time.astimezone(IST)
         
         # Round down to 5-minute interval
         candle_start_time = tick_time.replace(second=0, microsecond=0)
@@ -638,20 +691,20 @@ def on_ticks(ws, ticks):
         if current_candle_start is None:
             current_candle_start = candle_start_time
             current_candle = initialize_candle(current_candle_start)
-            print(f"New 5-minute candle started: {current_candle_start.strftime('%H:%M')}")
+            logger.info(f"New 5-minute candle started: {format_ist_time(current_candle_start)}")
         
         # Check if we need to start a new candle
         candle_end = current_candle_start + timedelta(minutes=interval_minutes)
         if tick_time >= candle_end:
             # Process completed candle
             if current_candle['open'] is not None:
-                print(f"5-minute candle completed: {current_candle_start.strftime('%H:%M')} - {candle_end.strftime('%H:%M')}, OHLC: O={current_candle.get('open')}, H={current_candle.get('high')}, L={current_candle.get('low')}, C={current_candle.get('close')}")
+                logger.info(f"5-minute candle completed: {format_ist_time(current_candle_start)} - {format_ist_time(candle_end)}, OHLC: O={current_candle.get('open')}, H={current_candle.get('high')}, L={current_candle.get('low')}, C={current_candle.get('close')}")
                 process_candle_complete(current_candle)
             
             # Start new candle
             current_candle_start = candle_end
             current_candle = initialize_candle(current_candle_start)
-            print(f"New 5-minute candle started: {current_candle_start.strftime('%H:%M')}")
+            logger.info(f"New 5-minute candle started: {format_ist_time(current_candle_start)}")
         
         # Update current candle with tick
         current_candle = update_candle_with_tick(current_candle, tick)
@@ -672,22 +725,22 @@ def on_ticks(ws, ticks):
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
                         open_trade['status'] = 'STOP_LOSS'
-                        print(f"BUY TRADE EXIT - STOP LOSS (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
+                        logger.info(f"BUY TRADE EXIT - STOP LOSS (TICK) at {format_ist_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
                         try:
                             send_trade_notification('EXIT', open_trade.copy())
                         except Exception as e:
-                            print(f"Error sending trade exit email: {e}")
+                            logger.error(f"Error sending trade exit email: {e}")
                         open_trade = None
                     elif price >= open_trade['target']:
                         open_trade['exit_price'] = open_trade['target']
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
                         open_trade['status'] = 'TARGET'
-                        print(f"BUY TRADE EXIT - TARGET (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
+                        logger.info(f"BUY TRADE EXIT - TARGET (TICK) at {format_ist_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
                         try:
                             send_trade_notification('EXIT', open_trade.copy())
                         except Exception as e:
-                            print(f"Error sending trade exit email: {e}")
+                            logger.error(f"Error sending trade exit email: {e}")
                         open_trade = None
                 
                 elif open_trade['type'] == 'SELL':
@@ -696,38 +749,38 @@ def on_ticks(ws, ticks):
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
                         open_trade['status'] = 'STOP_LOSS'
-                        print(f"SELL TRADE EXIT - STOP LOSS (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
+                        logger.info(f"SELL TRADE EXIT - STOP LOSS (TICK) at {format_ist_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
                         try:
                             send_trade_notification('EXIT', open_trade.copy())
                         except Exception as e:
-                            print(f"Error sending trade exit email: {e}")
+                            logger.error(f"Error sending trade exit email: {e}")
                         open_trade = None
                     elif price <= open_trade['target']:
                         open_trade['exit_price'] = open_trade['target']
                         open_trade['exit_date'] = tick_time
                         open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
                         open_trade['status'] = 'TARGET'
-                        print(f"SELL TRADE EXIT - TARGET (TICK): Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']}")
+                        logger.info(f"SELL TRADE EXIT - TARGET (TICK) at {format_ist_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
                         try:
                             send_trade_notification('EXIT', open_trade.copy())
                         except Exception as e:
-                            print(f"Error sending trade exit email: {e}")
+                            logger.error(f"Error sending trade exit email: {e}")
                         open_trade = None
 
 def on_connect(ws, response):
     """Handle websocket connection"""
     global instrument_token
-    print(f"WebSocket connected: {response}")
+    logger.info(f"WebSocket connected: {response}")
     
     instrument_token = int(os.getenv("INSTRUMENT_TOKEN", "12683010"))
     
     ws.subscribe([instrument_token])
     ws.set_mode(ws.MODE_FULL, [instrument_token])
-    print(f"Subscribed to instrument_token: {instrument_token}")
+    logger.info(f"Subscribed to instrument_token: {instrument_token} at {format_ist_time(get_ist_time())}")
 
 def on_close(ws, code, reason):
     """Handle websocket close"""
-    print(f"WebSocket closed: {code} - {reason}")
+    logger.warning(f"WebSocket closed: {code} - {reason} at {format_ist_time(get_ist_time())}")
     ws.stop()
 
 def start_websocket_server():
@@ -744,43 +797,44 @@ def start_websocket_server():
         raise ValueError("Access token not found. Please login first.")
     
     # Load candles from file on startup
-    print("[INIT] Loading candles from file...")
+    logger.info(f"[INIT] Loading candles from file at {format_ist_time(get_ist_time())}...")
     load_candles_from_file()
     
     # Initialize KiteConnect for live trading
     if LIVE_TRADING:
-        print("[INIT] 🔴 LIVE TRADING MODE ENABLED - Real orders will be placed!")
+        logger.warning("[INIT] 🔴 LIVE TRADING MODE ENABLED - Real orders will be placed!")
         kite = KiteConnect(api_key=api_key)
         kite.set_access_token(access_token.strip())
-        print("[INIT] ✅ KiteConnect initialized for live trading")
+        logger.info("[INIT] ✅ KiteConnect initialized for live trading")
     else:
-        print("[INIT] 📝 PAPER TRADING MODE - Trades will be saved to paper_trades.json")
-        print("[INIT] ⚠️  To enable live trading, set LIVE_TRADING = True at the top of websocket_server.py")
+        logger.info("[INIT] 📝 PAPER TRADING MODE - Trades will be saved to paper_trades.json")
+        logger.info("[INIT] ⚠️  To enable live trading, set LIVE_TRADING = True at the top of websocket_server.py")
     
     kws = KiteTicker(api_key, access_token.strip())
     kws.on_ticks = on_ticks
     kws.on_connect = on_connect
     kws.on_close = on_close
     
-    print(f"[INIT] Starting WebSocket server with RSI trading strategy...")
-    print(f"[INIT] Trading Configuration:")
-    print(f"  - Lots: {TRADING_LOTS} lot(s)")
-    print(f"  - Quantity: {TRADING_QUANTITY} shares (1 lot = 50 shares for NIFTY)")
-    print(f"  - Product: {TRADING_PRODUCT} ({'Intraday' if TRADING_PRODUCT == 'MIS' else 'Overnight' if TRADING_PRODUCT == 'NRML' else 'Unknown'})")
-    print(f"  - Mode: {'🔴 LIVE TRADING' if LIVE_TRADING else '📝 PAPER TRADING'}")
-    print(f"  - Candles Storage: {CANDLES_FILE} ({len(candles)} candles loaded)")
+    logger.info(f"[INIT] Starting WebSocket server with RSI trading strategy at {format_ist_time(get_ist_time())}")
+    logger.info(f"[INIT] Trading Configuration:")
+    logger.info(f"  - Lots: {TRADING_LOTS} lot(s)")
+    logger.info(f"  - Quantity: {TRADING_QUANTITY} shares (1 lot = 50 shares for NIFTY)")
+    logger.info(f"  - Product: {TRADING_PRODUCT} ({'Intraday' if TRADING_PRODUCT == 'MIS' else 'Overnight' if TRADING_PRODUCT == 'NRML' else 'Unknown'})")
+    logger.info(f"  - Mode: {'🔴 LIVE TRADING' if LIVE_TRADING else '📝 PAPER TRADING'}")
+    logger.info(f"  - Candles Storage: {CANDLES_FILE} ({len(candles)} candles loaded)")
+    logger.info(f"  - Log File: {LOG_FILE}")
     kws.connect()
     return kws
 
 def cleanup_on_exit():
     """Save candles before exiting"""
-    print("\n[SHUTDOWN] Saving candles before exit...")
+    logger.info(f"[SHUTDOWN] Saving candles before exit at {format_ist_time(get_ist_time())}...")
     save_candles_to_file()
-    print("[SHUTDOWN] ✅ Candles saved successfully")
+    logger.info("[SHUTDOWN] ✅ Candles saved successfully")
 
 def signal_handler(sig, frame):
     """Handle shutdown signals"""
-    print("\n[SHUTDOWN] Received shutdown signal...")
+    logger.info(f"[SHUTDOWN] Received shutdown signal at {format_ist_time(get_ist_time())}...")
     cleanup_on_exit()
     sys.exit(0)
 
