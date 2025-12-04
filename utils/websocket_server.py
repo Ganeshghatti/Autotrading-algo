@@ -8,14 +8,28 @@ from dotenv import load_dotenv
 import json
 import signal
 import atexit
-from utils.email_utils import send_trade_notification
 
 # Get project root directory (parent of utils folder)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
-# Add project root to path for imports
+# Add project root to path for imports (must be before importing utils modules)
 sys.path.insert(0, PROJECT_ROOT)
+# Also add current directory in case running from utils/ directory
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+# Import after path setup to ensure it works from any directory
+try:
+    from utils.email_utils import send_trade_notification
+except ImportError:
+    # Fallback: try direct import if running from utils directory
+    try:
+        from email_utils import send_trade_notification
+    except ImportError:
+        # Last resort: add parent directory explicitly
+        sys.path.insert(0, os.path.join(SCRIPT_DIR, '..'))
+        from utils.email_utils import send_trade_notification
 
 # ============================================================================
 # TRADING MODE CONFIGURATION
