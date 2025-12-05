@@ -81,6 +81,7 @@ kws = None  # KiteTicker instance
 reconnect_interval = 600  # 10 minutes in seconds
 should_reconnect = True  # Flag to control reconnection
 reconnect_thread = None  # Thread for reconnection
+is_connected = False  # Track if WebSocket is currently connected
 
 # Setup logging to both file and console
 logging.basicConfig(
@@ -739,12 +740,12 @@ def on_ticks(ws, ticks):
 
 def on_connect(ws, response):
     """Handle websocket connection"""
-    global instrument_token, reconnect_thread
+    global instrument_token, reconnect_thread, is_connected
     
     logger.info(f"✅ WebSocket connected successfully: {response} at {format_time(datetime.now())}")
     
-    # Connection successful, we can stop any reconnection attempts
-    # (The thread will naturally stop on next iteration if should_reconnect is False)
+    # Mark as connected - this will stop reconnection attempts
+    is_connected = True
     
     instrument_token = int(os.getenv("INSTRUMENT_TOKEN", "12683010"))
     
@@ -758,7 +759,12 @@ def on_connect(ws, response):
 
 def on_close(ws, code, reason):
     """Handle websocket close"""
+    global is_connected
+    
     logger.warning(f"⚠️  WebSocket closed: code={code}, reason={reason} at {format_time(datetime.now())}")
+    
+    # Mark as disconnected
+    is_connected = False
     
     # Trigger reconnection if we should reconnect
     if should_reconnect:
@@ -770,7 +776,12 @@ def on_close(ws, code, reason):
 
 def on_error(ws, code, reason):
     """Handle websocket errors"""
+    global is_connected
+    
     logger.error(f"❌ WebSocket error: code={code}, reason={reason} at {format_time(datetime.now())}")
+    
+    # Mark as disconnected on error
+    is_connected = False
     
     # Trigger reconnection if needed
     if should_reconnect:
@@ -779,7 +790,7 @@ def on_error(ws, code, reason):
 
 def reconnect_websocket():
     """Reconnect to websocket with retry logic"""
-    global kws, should_reconnect, reconnect_thread
+    global kws, should_reconnect, reconnect_thread, is_connected
     
     # Wait for the reconnect interval before attempting
     logger.info(f"⏳ Waiting {reconnect_interval // 60} minutes before reconnection attempt...")
@@ -789,8 +800,13 @@ def reconnect_websocket():
         logger.info("🛑 Reconnection cancelled (should_reconnect=False)")
         return
     
-    while should_reconnect:
+    while should_reconnect and not is_connected:
         try:
+            # Check if connection was established by another thread/process
+            if is_connected:
+                logger.info("✅ Connection already established, stopping reconnection thread")
+                break
+            
             logger.info(f"🔄 Attempting to reconnect WebSocket at {format_time(datetime.now())}...")
             
             api_key = os.getenv("API_KEY")
@@ -803,8 +819,8 @@ def reconnect_websocket():
                 time.sleep(reconnect_interval)
                 continue
             
-            # Close existing connection if any
-            if kws:
+            # Close existing connection if any (only if not connected)
+            if kws and not is_connected:
                 try:
                     kws.close()
                 except:
@@ -822,24 +838,29 @@ def reconnect_websocket():
             logger.info("✅ Reconnection attempt initiated, waiting for connection confirmation...")
             
             # Wait a bit to see if connection succeeds
-            # If on_connect is called, it means connection was successful
+            # If on_connect is called, is_connected will be set to True
             time.sleep(10)
             
-            # If we get here and should_reconnect is still True, 
-            # it means connection might have failed, so we'll retry
-            # But we'll wait for the next interval
-            if should_reconnect:
-                logger.info(f"🔄 Connection may have failed. Will retry again in {reconnect_interval // 60} minutes...")
-                time.sleep(reconnect_interval)
-            else:
+            # Check if connection was successful
+            if is_connected:
+                logger.info("✅ Reconnection successful! Connection established.")
                 break
+            
+            # If still not connected, wait and retry
+            if should_reconnect and not is_connected:
+                logger.info(f"🔄 Connection attempt failed. Will retry again in {reconnect_interval // 60} minutes...")
+                time.sleep(reconnect_interval)
             
         except Exception as e:
             logger.error(f"❌ Reconnection failed: {e}")
-            logger.info(f"🔄 Will retry again in {reconnect_interval // 60} minutes...")
-            time.sleep(reconnect_interval)
+            if should_reconnect and not is_connected:
+                logger.info(f"🔄 Will retry again in {reconnect_interval // 60} minutes...")
+                time.sleep(reconnect_interval)
     
-    logger.info("🛑 Reconnection loop stopped (should_reconnect=False)")
+    if is_connected:
+        logger.info("🛑 Reconnection loop stopped (connection established)")
+    else:
+        logger.info("🛑 Reconnection loop stopped (should_reconnect=False)")
 
 def start_reconnect_thread():
     """Start reconnection thread (only if not already running)"""
@@ -902,6 +923,16 @@ def start_websocket_server():
         kws.connect(threaded=True)
         logger.info("✅ WebSocket connection initiated")
         logger.info("ℹ️  If connection fails, automatic reconnection will be attempted every 10 minutes")
+        
+        # Wait a moment to see if initial connection succeeds
+        time.sleep(5)
+        
+        # Only start reconnection thread if initial connection failed
+        if not is_connected:
+            logger.warning("⚠️  Initial connection may have failed, starting reconnection thread...")
+            start_reconnect_thread()
+        else:
+            logger.info("✅ Initial connection successful, reconnection thread not needed")
         
     except Exception as e:
         logger.error(f"❌ Error starting WebSocket: {e}")
