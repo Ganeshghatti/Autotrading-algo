@@ -238,20 +238,32 @@ def load_candles_from_file():
     
     if not os.path.exists(CANDLES_FILE):
         logger.info("Candles file not found, starting with empty candles list")
-        candles = []
+        candles = []  # Ensure candles list is cleared
         return
     
     try:
         with open(CANDLES_FILE, 'r') as f:
             candles_data = json.load(f)
-            candles = [deserialize_candle(c) for c in candles_data]
+            # Validate that we have actual candle data, not empty or corrupted
+            if not candles_data or not isinstance(candles_data, list):
+                logger.warning("Candles file is empty or invalid, starting with empty list")
+                candles = []
+                return
+            
+            loaded_candles = [deserialize_candle(c) for c in candles_data]
             # Keep only last 50 candles in memory for RSI calculation
-            if len(candles) > 50:
-                candles = candles[-50:]
+            if len(loaded_candles) > 50:
+                loaded_candles = loaded_candles[-50:]
+            
+            # Replace the global candles list (don't append to existing)
+            candles = loaded_candles
             logger.info(f"✅ Loaded {len(candles)} candles from {CANDLES_FILE}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing candles JSON file: {e}. Starting with empty list.")
+        candles = []  # Clear on JSON error
     except Exception as e:
         logger.error(f"Error loading candles from file: {e}")
-        candles = []
+        candles = []  # Clear on any error
         import traceback
         traceback.print_exc()
 
@@ -266,8 +278,31 @@ def save_candles_to_file():
         return
     
     try:
-        # Keep only last 50 candles to save
-        candles_to_save = candles[-50:] if len(candles) > 50 else candles
+        # Validate candles list
+        if not candles or len(candles) == 0:
+            logger.debug(f"💾 No candles to save")
+            return
+        
+        # Remove duplicates based on timestamp to prevent saving same candle multiple times
+        seen_timestamps = set()
+        unique_candles = []
+        for candle in candles:
+            candle_timestamp = candle.get('date') or candle.get('timestamp')
+            if candle_timestamp:
+                # Convert to string for comparison
+                if isinstance(candle_timestamp, datetime):
+                    timestamp_key = candle_timestamp.isoformat()
+                else:
+                    timestamp_key = str(candle_timestamp)
+                
+                if timestamp_key not in seen_timestamps:
+                    seen_timestamps.add(timestamp_key)
+                    unique_candles.append(candle)
+                else:
+                    logger.debug(f"💾 Skipping duplicate candle with timestamp: {timestamp_key}")
+        
+        # Keep only last 50 unique candles to save
+        candles_to_save = unique_candles[-50:] if len(unique_candles) > 50 else unique_candles
         
         # Serialize candles (convert datetime to string)
         serialized_candles = [serialize_candle(c) for c in candles_to_save]
@@ -275,7 +310,7 @@ def save_candles_to_file():
         with open(CANDLES_FILE, 'w') as f:
             json.dump(serialized_candles, f, indent=2)
         
-        logger.debug(f"💾 Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
+        logger.info(f"💾 Saved {len(candles_to_save)} unique candles to {CANDLES_FILE} (removed {len(candles) - len(unique_candles)} duplicates)")
     except Exception as e:
         logger.error(f"Error saving candles to file: {e}")
         import traceback
@@ -715,10 +750,34 @@ def process_candle_complete(candle):
         pending_alert = None
         return
     
-    # Add to candles list for RSI calculation
-    candles.append(candle)
-    if len(candles) > 50:
-        candles.pop(0)  # Keep only last 50 in memory
+    # Add to candles list for RSI calculation (check for duplicates first)
+    candle_timestamp = candle.get('date') or candle.get('timestamp')
+    if candle_timestamp:
+        # Check if this candle already exists (prevent duplicates)
+        timestamp_key = candle_timestamp.isoformat() if isinstance(candle_timestamp, datetime) else str(candle_timestamp)
+        existing_candle = None
+        for idx, existing in enumerate(candles):
+            existing_timestamp = existing.get('date') or existing.get('timestamp')
+            if existing_timestamp:
+                existing_key = existing_timestamp.isoformat() if isinstance(existing_timestamp, datetime) else str(existing_timestamp)
+                if existing_key == timestamp_key:
+                    existing_candle = idx
+                    break
+        
+        if existing_candle is not None:
+            # Update existing candle instead of adding duplicate
+            logger.debug(f"[CANDLE PROCESS] Updating existing candle at index {existing_candle} instead of adding duplicate")
+            candles[existing_candle] = candle
+        else:
+            # Add new candle
+            candles.append(candle)
+            if len(candles) > 50:
+                candles.pop(0)  # Keep only last 50 in memory
+    else:
+        # No timestamp, just append (shouldn't happen, but handle it)
+        candles.append(candle)
+        if len(candles) > 50:
+            candles.pop(0)  # Keep only last 50 in memory
     
     logger.info(f"[CANDLE PROCESS] Total candles in memory: {len(candles)}")
     
