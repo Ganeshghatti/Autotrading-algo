@@ -210,8 +210,14 @@ def load_candles_from_file():
         traceback.print_exc()
 
 def save_candles_to_file():
-    """Save candles to JSON file (keep last 50 for RSI calculation)"""
+    """Save candles to JSON file (keep last 50 for RSI calculation) - only during market hours"""
     global candles
+    
+    # Only save during market hours or on shutdown
+    current_time = datetime.now()
+    if not is_market_hours(current_time):
+        logger.debug(f"💾 Skipping candle save - outside market hours")
+        return
     
     try:
         # Keep only last 50 candles to save
@@ -261,6 +267,24 @@ def is_after_325(candle_time):
     if isinstance(candle_time, datetime):
         return candle_time.hour > 15 or (candle_time.hour == 15 and candle_time.minute >= 25)
     return False
+
+def is_market_hours(candle_time):
+    """Check if time is within market hours (9:15 AM to 3:25 PM)"""
+    if not isinstance(candle_time, datetime):
+        return False
+    
+    hour = candle_time.hour
+    minute = candle_time.minute
+    
+    # Market opens at 9:15 AM
+    if hour < 9 or (hour == 9 and minute < 15):
+        return False
+    
+    # Market closes at 3:25 PM
+    if hour > 15 or (hour == 15 and minute >= 25):
+        return False
+    
+    return True
 
 def check_alert_candle(candle, rsi):
     """Mark alert candle when RSI > 60 or RSI < 40"""
@@ -578,6 +602,11 @@ def process_candle_complete(candle):
     
     logger.info(f"[CANDLE PROCESS] Processing completed candle: {format_time(candle['date'])}, OHLC: O={candle.get('open')}, H={candle.get('high')}, L={candle.get('low')}, C={candle.get('close')}")
     
+    # Check if we're in market hours - skip processing outside market hours
+    if not is_market_hours(candle['date']):
+        logger.info(f"[CANDLE PROCESS] ⏸️  Outside market hours (9:15 AM - 3:25 PM), skipping candle processing")
+        return
+    
     # Rule 1: Skip first candle of day
     if is_first_candle_of_day(candle['date']):
         logger.info(f"[CANDLE PROCESS] Skipping first candle of day: {format_time(candle['date'])}")
@@ -600,12 +629,13 @@ def process_candle_complete(candle):
     
     logger.info(f"[CANDLE PROCESS] Total candles in memory: {len(candles)}")
     
-    # Save candles to file after each candle completion
-    save_candles_to_file()
-    
-    # Calculate RSI
-    logger.info(f"[CANDLE PROCESS] Calculating RSI from {len(candles)} candles...")
+    # Calculate RSI (RSI period is 14, so we need at least 15 candles)
+    # We keep 50 candles to have enough historical data for accurate RSI calculation
+    logger.info(f"[CANDLE PROCESS] Calculating RSI from {len(candles)} candles (RSI period=14, need at least 15 candles)...")
     rsi = calculate_rsi_from_candles(candles, period=14)
+    
+    # Save candles to file after each candle completion (only during market hours)
+    save_candles_to_file()
     
     # Rule 2: Mark alert candle when RSI > 60 or RSI < 40
     if rsi is not None:
@@ -954,12 +984,21 @@ def start_websocket_server():
     return kws
 
 def cleanup_on_exit():
-    """Save candles before exiting"""
+    """Save candles before exiting (always save on shutdown, regardless of market hours)"""
     global should_reconnect, kws
     
     logger.info(f"[SHUTDOWN] Saving candles before exit at {format_time(datetime.now())}...")
     should_reconnect = False  # Stop reconnection attempts
-    save_candles_to_file()
+    
+    # Force save on shutdown (bypass market hours check)
+    try:
+        candles_to_save = candles[-50:] if len(candles) > 50 else candles
+        serialized_candles = [serialize_candle(c) for c in candles_to_save]
+        with open(CANDLES_FILE, 'w') as f:
+            json.dump(serialized_candles, f, indent=2)
+        logger.info(f"[SHUTDOWN] ✅ Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
+    except Exception as e:
+        logger.error(f"[SHUTDOWN] Error saving candles: {e}")
     
     # Close websocket connection
     if kws:
@@ -968,7 +1007,7 @@ def cleanup_on_exit():
         except:
             pass
     
-    logger.info("[SHUTDOWN] ✅ Candles saved successfully, WebSocket closed")
+    logger.info("[SHUTDOWN] ✅ WebSocket closed")
 
 def signal_handler(sig, frame):
     """Handle shutdown signals"""
