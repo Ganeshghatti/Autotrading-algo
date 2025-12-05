@@ -134,64 +134,43 @@ def update_candle_with_tick(candle, tick):
     if price == 0:
         return candle
     
-    # Use tick's OHLC data if available (more accurate)
-    tick_ohlc = tick.get('ohlc', {})
-    if tick_ohlc and tick_ohlc.get('open') is not None:
-        tick_open = tick_ohlc.get('open')
-        tick_high = tick_ohlc.get('high')
-        tick_low = tick_ohlc.get('low')
-        tick_close = tick_ohlc.get('close')
-        
-        # Validate OHLC data - ensure prices are reasonable (not all zeros or identical stale values)
-        if tick_open and tick_high and tick_low and tick_close:
-            # Check if OHLC values are valid (not all the same, which indicates stale data)
-            if tick_open == tick_high == tick_low == tick_close:
-                # If all OHLC are identical, it might be stale data - use last_price instead
-                logger.debug(f"⚠️  Stale OHLC data detected (all values identical: {tick_close}), using last_price instead")
-                if candle['open'] is None:
-                    candle['open'] = price
-                    candle['high'] = price
-                    candle['low'] = price
-                    candle['close'] = price
-                else:
-                    candle['high'] = max(candle['high'], price)
-                    candle['low'] = min(candle['low'], price)
-                    candle['close'] = price
-            else:
-                # Valid OHLC data
-                if candle['open'] is None and tick_open is not None:
-                    candle['open'] = tick_open
-                
-                if tick_high is not None:
-                    candle['high'] = tick_high if candle['high'] is None else max(candle['high'], tick_high)
-                
-                if tick_low is not None:
-                    candle['low'] = tick_low if candle['low'] is None else min(candle['low'], tick_low)
-                
-                if tick_close is not None:
-                    candle['close'] = tick_close
+    # IMPORTANT: Always use last_price for close (OHLC close is stale - it's from previous candle)
+    # Build candle OHLC from actual tick prices, not from stale OHLC data
+    
+    # Set open price (only on first tick of candle)
+    if candle['open'] is None:
+        # Try to use OHLC open if available and valid, otherwise use last_price
+        tick_ohlc = tick.get('ohlc', {})
+        tick_open = tick_ohlc.get('open') if tick_ohlc else None
+        if tick_open and tick_open > 0:
+            candle['open'] = tick_open
         else:
-            # Invalid OHLC data, fallback to last_price
-            if candle['open'] is None:
-                candle['open'] = price
-                candle['high'] = price
-                candle['low'] = price
-                candle['close'] = price
-            else:
-                candle['high'] = max(candle['high'], price)
-                candle['low'] = min(candle['low'], price)
-                candle['close'] = price
-    else:
-        # Fallback: build OHLC from last_price
-        if candle['open'] is None:
             candle['open'] = price
-            candle['high'] = price
-            candle['low'] = price
-            candle['close'] = price
-        else:
-            candle['high'] = max(candle['high'], price)
-            candle['low'] = min(candle['low'], price)
-            candle['close'] = price
+        candle['high'] = price
+        candle['low'] = price
+        candle['close'] = price
+    else:
+        # Update high, low, and close from actual tick prices
+        candle['high'] = max(candle['high'], price)
+        candle['low'] = min(candle['low'], price)
+        candle['close'] = price  # Always use last_price for close (current tick price)
+        
+        # Optionally use OHLC high/low if they're higher/lower than current price
+        # (but only if they seem valid - not stale)
+        tick_ohlc = tick.get('ohlc', {})
+        if tick_ohlc:
+            tick_high = tick_ohlc.get('high')
+            tick_low = tick_ohlc.get('low')
+            
+            # Only use OHLC high/low if they're different from close (not stale)
+            # and if they expand the current range
+            if tick_high and tick_high != tick_ohlc.get('close', 0) and tick_high > candle['high']:
+                candle['high'] = tick_high
+                logger.debug(f"Using OHLC high: {tick_high} (expanded from {candle['high']})")
+            
+            if tick_low and tick_low != tick_ohlc.get('close', 0) and tick_low < candle['low']:
+                candle['low'] = tick_low
+                logger.debug(f"Using OHLC low: {tick_low} (expanded from {candle['low']})")
     
     # Update volume
     volume_traded = tick.get('volume_traded', 0)
