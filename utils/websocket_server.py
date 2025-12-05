@@ -111,7 +111,25 @@ def initialize_candle(tick_time):
     }
 
 def update_candle_with_tick(candle, tick):
-    """Update candle OHLC with new tick data"""
+    """Update candle OHLC with new tick data - only during market hours and when market is open"""
+    # First check if market is closed based on tick data indicators
+    if is_market_closed_from_tick(tick):
+        logger.debug(f"⚠️  Market appears closed (volume=0 or stale data), skipping tick update")
+        return candle
+    
+    # Check if we're in market hours before updating
+    tick_time = tick.get('exchange_timestamp') or tick.get('last_trade_time')
+    if tick_time:
+        if isinstance(tick_time, str):
+            try:
+                tick_time = datetime.strptime(tick_time.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
+            except:
+                tick_time = datetime.now()
+        
+        # Only update candles during market hours
+        if not is_market_hours(tick_time):
+            return candle
+    
     price = tick.get('last_price', 0)
     if price == 0:
         return candle
@@ -124,17 +142,45 @@ def update_candle_with_tick(candle, tick):
         tick_low = tick_ohlc.get('low')
         tick_close = tick_ohlc.get('close')
         
-        if candle['open'] is None and tick_open is not None:
-            candle['open'] = tick_open
-        
-        if tick_high is not None:
-            candle['high'] = tick_high if candle['high'] is None else max(candle['high'], tick_high)
-        
-        if tick_low is not None:
-            candle['low'] = tick_low if candle['low'] is None else min(candle['low'], tick_low)
-        
-        if tick_close is not None:
-            candle['close'] = tick_close
+        # Validate OHLC data - ensure prices are reasonable (not all zeros or identical stale values)
+        if tick_open and tick_high and tick_low and tick_close:
+            # Check if OHLC values are valid (not all the same, which indicates stale data)
+            if tick_open == tick_high == tick_low == tick_close:
+                # If all OHLC are identical, it might be stale data - use last_price instead
+                logger.debug(f"⚠️  Stale OHLC data detected (all values identical: {tick_close}), using last_price instead")
+                if candle['open'] is None:
+                    candle['open'] = price
+                    candle['high'] = price
+                    candle['low'] = price
+                    candle['close'] = price
+                else:
+                    candle['high'] = max(candle['high'], price)
+                    candle['low'] = min(candle['low'], price)
+                    candle['close'] = price
+            else:
+                # Valid OHLC data
+                if candle['open'] is None and tick_open is not None:
+                    candle['open'] = tick_open
+                
+                if tick_high is not None:
+                    candle['high'] = tick_high if candle['high'] is None else max(candle['high'], tick_high)
+                
+                if tick_low is not None:
+                    candle['low'] = tick_low if candle['low'] is None else min(candle['low'], tick_low)
+                
+                if tick_close is not None:
+                    candle['close'] = tick_close
+        else:
+            # Invalid OHLC data, fallback to last_price
+            if candle['open'] is None:
+                candle['open'] = price
+                candle['high'] = price
+                candle['low'] = price
+                candle['close'] = price
+            else:
+                candle['high'] = max(candle['high'], price)
+                candle['low'] = min(candle['low'], price)
+                candle['close'] = price
     else:
         # Fallback: build OHLC from last_price
         if candle['open'] is None:
@@ -268,9 +314,53 @@ def is_after_325(candle_time):
         return candle_time.hour > 15 or (candle_time.hour == 15 and candle_time.minute >= 25)
     return False
 
+def is_weekend(date):
+    """Check if a date is a weekend (Saturday or Sunday)"""
+    if not isinstance(date, datetime):
+        return False
+    
+    weekday = date.weekday()
+    return weekday >= 5  # Saturday = 5, Sunday = 6
+
+def is_market_closed_from_tick(tick):
+    """Detect if market is closed based on tick data indicators"""
+    if not tick:
+        return True
+    
+    # Check volume - if volume is 0, market is likely closed
+    volume_traded = tick.get('volume_traded', 0)
+    volume = tick.get('volume', 0)
+    if volume_traded == 0 and volume == 0:
+        return True
+    
+    # Check if OHLC data indicates stale data (market closed)
+    tick_ohlc = tick.get('ohlc', {})
+    if tick_ohlc:
+        tick_open = tick_ohlc.get('open')
+        tick_high = tick_ohlc.get('high')
+        tick_low = tick_ohlc.get('low')
+        tick_close = tick_ohlc.get('close')
+        
+        # If all OHLC values are identical and volume is 0, market is closed
+        if tick_open == tick_high == tick_low == tick_close and (volume_traded == 0 or volume == 0):
+            return True
+    
+    # Check last_price - if it's 0 or None, market might be closed
+    last_price = tick.get('last_price', 0)
+    if last_price == 0:
+        # But only consider closed if volume is also 0
+        if volume_traded == 0 and volume == 0:
+            return True
+    
+    return False
+
 def is_market_hours(candle_time):
-    """Check if time is within market hours (9:15 AM to 3:25 PM)"""
+    """Check if time is within market hours (9:15 AM to 3:25 PM) and not a weekend"""
     if not isinstance(candle_time, datetime):
+        return False
+    
+    # Check if it's a weekend
+    if is_weekend(candle_time):
         return False
     
     hour = candle_time.hour
@@ -602,9 +692,12 @@ def process_candle_complete(candle):
     
     logger.info(f"[CANDLE PROCESS] Processing completed candle: {format_time(candle['date'])}, OHLC: O={candle.get('open')}, H={candle.get('high')}, L={candle.get('low')}, C={candle.get('close')}")
     
-    # Check if we're in market hours - skip processing outside market hours
+    # Check if we're in market hours - skip processing outside market hours or on weekends
     if not is_market_hours(candle['date']):
-        logger.info(f"[CANDLE PROCESS] ⏸️  Outside market hours (9:15 AM - 3:25 PM), skipping candle processing")
+        if is_weekend(candle['date']):
+            logger.info(f"[CANDLE PROCESS] ⏸️  Weekend detected, skipping candle processing")
+        else:
+            logger.info(f"[CANDLE PROCESS] ⏸️  Outside market hours (9:15 AM - 3:25 PM IST), skipping candle processing")
         return
     
     # Rule 1: Skip first candle of day
@@ -683,6 +776,11 @@ def on_ticks(ws, ticks):
         if tick_token != instrument_token:
             continue
         
+        # Check if market is closed based on tick data (before processing)
+        if is_market_closed_from_tick(tick):
+            logger.debug(f"⚠️  Market closed (detected from tick data), skipping tick")
+            continue
+        
         # Get tick time (uses system timezone)
         tick_time = tick.get('exchange_timestamp') or tick.get('last_trade_time')
         if not tick_time:
@@ -694,6 +792,11 @@ def on_ticks(ws, ticks):
                 tick_time = datetime.strptime(tick_time.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
             except:
                 tick_time = datetime.now()
+        
+        # Double-check market hours based on timestamp
+        if not is_market_hours(tick_time):
+            logger.debug(f"⚠️  Outside market hours (timestamp: {format_time(tick_time)}), skipping tick")
+            continue
         
         # Round down to 5-minute interval
         candle_start_time = tick_time.replace(second=0, microsecond=0)
