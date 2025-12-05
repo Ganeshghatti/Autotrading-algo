@@ -311,10 +311,10 @@ def get_tradingsymbol_from_token(instrument_token):
             if inst['instrument_token'] == instrument_token:
                 tradingsymbol = inst['tradingsymbol']
                 exchange = inst['exchange']
-                print(f"[DEBUG] Found tradingsymbol: {tradingsymbol} on {exchange} for token {instrument_token}")
+                logger.debug(f"Found tradingsymbol: {tradingsymbol} on {exchange} for token {instrument_token}")
                 return tradingsymbol, exchange
         
-        print(f"[ERROR] Could not find tradingsymbol for instrument_token: {instrument_token}")
+        logger.error(f"Could not find tradingsymbol for instrument_token: {instrument_token}")
         return None, None
     except Exception as e:
         logger.error(f"Error fetching instruments: {e}")
@@ -334,7 +334,7 @@ def execute_trade_order(trade_type, entry_price, instrument_token):
             # Get tradingsymbol from instrument_token
             tradingsymbol, exchange = get_tradingsymbol_from_token(instrument_token)
             if not tradingsymbol:
-                print(f"[LIVE TRADING] ❌ Cannot place order: tradingsymbol not found")
+                logger.error(f"[LIVE TRADING] ❌ Cannot place order: tradingsymbol not found")
                 return None
             
             # Map product string to KiteConnect constant
@@ -345,12 +345,12 @@ def execute_trade_order(trade_type, entry_price, instrument_token):
             else:
                 product = kite.PRODUCT_MIS  # Default to MIS
             
-            print(f"[LIVE TRADING] Placing {trade_type} order for NIFTY Futures:")
-            print(f"  - Tradingsymbol: {tradingsymbol}")
-            print(f"  - Exchange: {exchange}")
-            print(f"  - Quantity: {TRADING_QUANTITY} ({TRADING_LOTS} lot(s))")
-            print(f"  - Price: {entry_price}")
-            print(f"  - Product: {TRADING_PRODUCT}")
+            logger.info(f"[LIVE TRADING] Placing {trade_type} order for NIFTY Futures:")
+            logger.info(f"  - Tradingsymbol: {tradingsymbol}")
+            logger.info(f"  - Exchange: {exchange}")
+            logger.info(f"  - Quantity: {TRADING_QUANTITY} ({TRADING_LOTS} lot(s))")
+            logger.info(f"  - Price: {entry_price}")
+            logger.info(f"  - Product: {TRADING_PRODUCT}")
             
             order_id = kite.place_order(
                 variety=kite.VARIETY_REGULAR,
@@ -363,7 +363,7 @@ def execute_trade_order(trade_type, entry_price, instrument_token):
                 order_type=kite.ORDER_TYPE_LIMIT,
                 validity=kite.VALIDITY_DAY
             )
-            print(f"[LIVE TRADING] ✅ Order placed successfully: Order ID={order_id}")
+            logger.info(f"[LIVE TRADING] ✅ Order placed successfully: Order ID={order_id}")
             return order_id
         except Exception as e:
             logger.error(f"[LIVE TRADING] ❌ Error placing order: {e}")
@@ -402,7 +402,7 @@ def execute_trade_order(trade_type, entry_price, instrument_token):
             with open(filename, 'w') as f:
                 json.dump(paper_trades, f, indent=2)
             
-            print(f"[PAPER TRADING] ✅ Trade saved to {filename}: {trade_type} @ {entry_price}")
+            logger.info(f"[PAPER TRADING] ✅ Trade saved to {filename}: {trade_type} @ {entry_price}")
             return paper_trade['trade_id']
         except Exception as e:
             logger.error(f"[PAPER TRADING] ❌ Error saving paper trade: {e}")
@@ -492,12 +492,12 @@ def check_trade_exit(current_candle):
     high = current_candle.get('high', 0)
     low = current_candle.get('low', 0)
     
-    print(f"[DEBUG] Checking trade exit: Type={open_trade['type']}, Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}, Candle High={high}, Candle Low={low}")
+    logger.info(f"[TRADE EXIT] Checking: Type={open_trade['type']}, Entry={open_trade['entry_price']}, SL={open_trade['stop_loss']}, Target={open_trade['target']}, Candle High={high}, Candle Low={low}")
     
     if open_trade['type'] == 'BUY':
         if low <= open_trade['stop_loss']:
             # Stop loss hit
-            print(f"[DEBUG] 🛑 BUY STOP LOSS HIT: Candle Low ({low}) <= SL ({open_trade['stop_loss']})")
+            logger.info(f"[TRADE EXIT] 🛑 BUY STOP LOSS HIT: Candle Low ({low}) <= SL ({open_trade['stop_loss']})")
             open_trade['exit_price'] = open_trade['stop_loss']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
@@ -506,11 +506,11 @@ def check_trade_exit(current_candle):
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
-                print(f"[ERROR] Error sending trade exit email: {e}")
+                logger.error(f"Error sending trade exit email: {e}")
             open_trade = None
         elif high >= open_trade['target']:
             # Target hit
-            print(f"[DEBUG] 🎯 BUY TARGET HIT: Candle High ({high}) >= Target ({open_trade['target']})")
+            logger.info(f"[TRADE EXIT] 🎯 BUY TARGET HIT: Candle High ({high}) >= Target ({open_trade['target']})")
             open_trade['exit_price'] = open_trade['target']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
@@ -519,15 +519,15 @@ def check_trade_exit(current_candle):
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
-                print(f"[ERROR] Error sending trade exit email: {e}")
+                logger.error(f"Error sending trade exit email: {e}")
             open_trade = None
         else:
-            print(f"[DEBUG] ⏳ BUY trade still open: Low ({low}) > SL ({open_trade['stop_loss']}) and High ({high}) < Target ({open_trade['target']})")
+            logger.debug(f"⏳ BUY trade still open: Low ({low}) > SL ({open_trade['stop_loss']}) and High ({high}) < Target ({open_trade['target']})")
     
     elif open_trade['type'] == 'SELL':
         if high >= open_trade['stop_loss']:
             # Stop loss hit
-            print(f"[DEBUG] 🛑 SELL STOP LOSS HIT: Candle High ({high}) >= SL ({open_trade['stop_loss']})")
+            logger.info(f"[TRADE EXIT] 🛑 SELL STOP LOSS HIT: Candle High ({high}) >= SL ({open_trade['stop_loss']})")
             open_trade['exit_price'] = open_trade['stop_loss']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
@@ -536,11 +536,11 @@ def check_trade_exit(current_candle):
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
-                print(f"[ERROR] Error sending trade exit email: {e}")
+                logger.error(f"Error sending trade exit email: {e}")
             open_trade = None
         elif low <= open_trade['target']:
             # Target hit
-            print(f"[DEBUG] 🎯 SELL TARGET HIT: Candle Low ({low}) <= Target ({open_trade['target']})")
+            logger.info(f"[TRADE EXIT] 🎯 SELL TARGET HIT: Candle Low ({low}) <= Target ({open_trade['target']})")
             open_trade['exit_price'] = open_trade['target']
             open_trade['exit_date'] = current_candle['date']
             open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
@@ -549,10 +549,10 @@ def check_trade_exit(current_candle):
             try:
                 send_trade_notification('EXIT', open_trade.copy())
             except Exception as e:
-                print(f"[ERROR] Error sending trade exit email: {e}")
+                logger.error(f"Error sending trade exit email: {e}")
             open_trade = None
         else:
-            print(f"[DEBUG] ⏳ SELL trade still open: High ({high}) < SL ({open_trade['stop_loss']}) and Low ({low}) > Target ({open_trade['target']})")
+            logger.debug(f"⏳ SELL trade still open: High ({high}) < SL ({open_trade['stop_loss']}) and Low ({low}) > Target ({open_trade['target']})")
 
 def exit_trade_at_325(trade, exit_price, exit_time):
     """Exit trade at 3:25 PM"""
