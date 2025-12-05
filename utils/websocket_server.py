@@ -232,12 +232,12 @@ def save_candles_to_file():
 def calculate_rsi_from_candles(candles_list, period=14):
     """Calculate RSI using TA-Lib from candle list"""
     if len(candles_list) < period + 1:
-        print(f"[DEBUG] Not enough candles for RSI: {len(candles_list)} < {period + 1}")
+        logger.debug(f"Not enough candles for RSI: {len(candles_list)} < {period + 1}")
         return None
     
     closes = [candle['close'] for candle in candles_list if candle['close'] is not None]
     if len(closes) < period + 1:
-        print(f"[DEBUG] Not enough valid closes for RSI: {len(closes)} < {period + 1}")
+        logger.debug(f"Not enough valid closes for RSI: {len(closes)} < {period + 1}")
         return None
     
     closes_array = np.array(closes, dtype=float)
@@ -245,9 +245,9 @@ def calculate_rsi_from_candles(candles_list, period=14):
     
     if len(rsi) > 0 and not np.isnan(rsi[-1]):
         rsi_value = float(rsi[-1])
-        print(f"[DEBUG] RSI calculated: {rsi_value:.2f} (from {len(candles_list)} candles)")
+        logger.info(f"[RSI] Calculated: {rsi_value:.2f} (from {len(candles_list)} candles)")
         return rsi_value
-    print(f"[DEBUG] RSI calculation returned NaN or empty")
+    logger.debug(f"RSI calculation returned NaN or empty")
     return None
 
 def is_first_candle_of_day(candle_time):
@@ -265,10 +265,10 @@ def is_after_325(candle_time):
 def check_alert_candle(candle, rsi):
     """Mark alert candle when RSI > 60 or RSI < 40"""
     if rsi is None:
-        print(f"[DEBUG] RSI is None, cannot check alert")
+        logger.debug(f"RSI is None, cannot check alert")
         return None
     
-    print(f"[DEBUG] Checking alert candle: RSI={rsi:.2f}, Candle OHLC: O={candle.get('open')}, H={candle.get('high')}, L={candle.get('low')}, C={candle.get('close')}")
+    logger.info(f"[ALERT CHECK] RSI={rsi:.2f}, Candle OHLC: O={candle.get('open')}, H={candle.get('high')}, L={candle.get('low')}, C={candle.get('close')}")
     
     if rsi > 60:
         alert = {
@@ -280,7 +280,7 @@ def check_alert_candle(candle, rsi):
             'rsi': rsi,
             'alert_type': 'BUY'
         }
-        print(f"[DEBUG] ✅ BUY ALERT DETECTED: RSI={rsi:.2f} > 60")
+        logger.info(f"[ALERT CHECK] ✅ BUY ALERT DETECTED: RSI={rsi:.2f} > 60")
         return alert
     elif rsi < 40:
         alert = {
@@ -292,10 +292,10 @@ def check_alert_candle(candle, rsi):
             'rsi': rsi,
             'alert_type': 'SELL'
         }
-        print(f"[DEBUG] ✅ SELL ALERT DETECTED: RSI={rsi:.2f} < 40")
+        logger.info(f"[ALERT CHECK] ✅ SELL ALERT DETECTED: RSI={rsi:.2f} < 40")
         return alert
     
-    print(f"[DEBUG] No alert: RSI={rsi:.2f} is between 40 and 60")
+    logger.debug(f"No alert: RSI={rsi:.2f} is between 40 and 60")
     return None
 
 def get_tradingsymbol_from_token(instrument_token):
@@ -414,18 +414,18 @@ def check_trade_entry(current_candle, alert):
     
     # Risk management: Only 1 trade at a time
     if open_trade is not None:
-        print(f"[DEBUG] ⚠️  Cannot enter trade: Already have open trade: {open_trade['type']} @ {open_trade['entry_price']}")
+        logger.debug(f"⚠️  Cannot enter trade: Already have open trade: {open_trade['type']} @ {open_trade['entry_price']}")
         return
     
     current_high = current_candle.get('high', 0)
     current_low = current_candle.get('low', 0)
     
-    print(f"[DEBUG] Checking trade entry: Alert={alert['alert_type']}, Alert High={alert['high']}, Alert Low={alert['low']}, Current High={current_high}, Current Low={current_low}")
+    logger.info(f"[TRADE ENTRY] Checking: Alert={alert['alert_type']}, Alert High={alert['high']}, Alert Low={alert['low']}, Current High={current_high}, Current Low={current_low}")
     
     if alert['alert_type'] == 'BUY':
         # BUY when high of next candle crosses high of alert candle
         if current_high > alert['high']:
-            print(f"[DEBUG] ✅ BUY ENTRY CONDITION MET: Current High ({current_high}) > Alert High ({alert['high']})")
+            logger.info(f"[TRADE ENTRY] ✅ BUY ENTRY CONDITION MET: Current High ({current_high}) > Alert High ({alert['high']})")
             open_trade = {
                 'type': 'BUY',
                 'alert_date': alert['date'],
@@ -450,12 +450,12 @@ def check_trade_entry(current_candle, alert):
             except Exception as e:
                 logger.error(f"Error sending trade entry email: {e}")
         else:
-            print(f"[DEBUG] ⏳ BUY entry condition not met: Current High ({current_high}) <= Alert High ({alert['high']})")
+            logger.debug(f"⏳ BUY entry condition not met: Current High ({current_high}) <= Alert High ({alert['high']})")
     
     elif alert['alert_type'] == 'SELL':
         # SELL when low of next candle crosses low of alert candle
         if current_low < alert['low']:
-            print(f"[DEBUG] ✅ SELL ENTRY CONDITION MET: Current Low ({current_low}) < Alert Low ({alert['low']})")
+            logger.info(f"[TRADE ENTRY] ✅ SELL ENTRY CONDITION MET: Current Low ({current_low}) < Alert Low ({alert['low']})")
             open_trade = {
                 'type': 'SELL',
                 'alert_date': alert['date'],
@@ -480,7 +480,7 @@ def check_trade_entry(current_candle, alert):
             except Exception as e:
                 logger.error(f"Error sending trade entry email: {e}")
         else:
-            print(f"[DEBUG] ⏳ SELL entry condition not met: Current Low ({current_low}) >= Alert Low ({alert['low']})")
+            logger.debug(f"⏳ SELL entry condition not met: Current Low ({current_low}) >= Alert Low ({alert['low']})")
 
 def check_trade_exit(current_candle):
     """Check if we should exit the current trade (SL or Target)"""
@@ -576,13 +576,16 @@ def process_candle_complete(candle):
     """Process a completed 5-minute candle"""
     global pending_alert, current_candle, open_trade
     
+    logger.info(f"[CANDLE PROCESS] Processing completed candle: {format_time(candle['date'])}, OHLC: O={candle.get('open')}, H={candle.get('high')}, L={candle.get('low')}, C={candle.get('close')}")
+    
     # Rule 1: Skip first candle of day
     if is_first_candle_of_day(candle['date']):
-        logger.info(f"Skipping first candle of day: {format_time(candle['date'])}")
+        logger.info(f"[CANDLE PROCESS] Skipping first candle of day: {format_time(candle['date'])}")
         return
     
     # Time exit rule: At 3:25 PM, close all ongoing trades
     if is_after_325(candle['date']):
+        logger.info(f"[CANDLE PROCESS] After 3:25 PM, closing trades if any")
         if open_trade:
             close_price = candle.get('close', 0)
             if close_price > 0:
@@ -595,39 +598,47 @@ def process_candle_complete(candle):
     if len(candles) > 50:
         candles.pop(0)  # Keep only last 50 in memory
     
+    logger.info(f"[CANDLE PROCESS] Total candles in memory: {len(candles)}")
+    
     # Save candles to file after each candle completion
     save_candles_to_file()
     
     # Calculate RSI
+    logger.info(f"[CANDLE PROCESS] Calculating RSI from {len(candles)} candles...")
     rsi = calculate_rsi_from_candles(candles, period=14)
     
     # Rule 2: Mark alert candle when RSI > 60 or RSI < 40
     if rsi is not None:
+        logger.info(f"[CANDLE PROCESS] RSI calculated: {rsi:.2f}, checking for alerts...")
         alert = check_alert_candle(candle, rsi)
         if alert:
             # Rule 3: High - Low of alert candle should be less than 40 points
             candle_range = alert['high'] - alert['low']
-            print(f"[DEBUG] Alert candle range check: High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f}")
+            logger.info(f"[ALERT CHECK] Range check: High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f}")
             if candle_range < 40:
                 pending_alert = alert
                 logger.info(f"[ALERT] ✅ ALERT CANDLE VALIDATED at {format_time(datetime.now())}: Type={alert['alert_type']}, RSI={alert['rsi']:.2f}, High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f} (< 40)")
             else:
-                print(f"[ALERT] ❌ Alert candle REJECTED: Range={candle_range:.2f} >= 40 (too large)")
+                logger.info(f"[ALERT] ❌ Alert candle REJECTED: Range={candle_range:.2f} >= 40 (too large)")
+        else:
+            logger.debug(f"[CANDLE PROCESS] No alert conditions met (RSI={rsi:.2f})")
+    else:
+        logger.debug(f"[CANDLE PROCESS] RSI is None, cannot check for alerts")
     
     # Rule 4 & 5: Check for trade entry from pending alert (next candle after alert)
     if pending_alert:
         if open_trade is None:
-            print(f"[DEBUG] Checking trade entry for pending alert: Type={pending_alert['alert_type']}, Alert High={pending_alert['high']}, Alert Low={pending_alert['low']}")
+            logger.info(f"[TRADE ENTRY] Checking trade entry for pending alert: Type={pending_alert['alert_type']}, Alert High={pending_alert['high']}, Alert Low={pending_alert['low']}")
             check_trade_entry(candle, pending_alert)
             if open_trade:
                 pending_alert = None  # Alert used
-                print(f"[DEBUG] ✅ Trade entered, pending alert cleared")
+                logger.info(f"[TRADE ENTRY] ✅ Trade entered, pending alert cleared")
         else:
-            print(f"[DEBUG] ⚠️  Pending alert exists but trade already open, skipping entry check")
+            logger.debug(f"⚠️  Pending alert exists but trade already open, skipping entry check")
     
     # Check for trade exit on completed candle
     if open_trade:
-        print(f"[DEBUG] Checking trade exit on completed candle")
+        logger.info(f"[TRADE EXIT] Checking trade exit on completed candle")
         check_trade_exit(candle)
     
     # Store current candle for next tick processing
