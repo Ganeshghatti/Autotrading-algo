@@ -890,11 +890,13 @@ def on_ticks(ws, ticks):
     """
     global current_candle, current_candle_start, open_trade
     
-    # Track last seen volume to detect stale data
-    if not hasattr(on_ticks, 'last_volume'):
+    # Initialize stale detection variables ONCE
+    if not hasattr(on_ticks, 'initialized'):
         on_ticks.last_volume = 0
-    if not hasattr(on_ticks, 'stale_count'):
         on_ticks.stale_count = 0
+        on_ticks.last_tick_time = None
+        on_ticks.initialized = True
+        logger.info("📊 Tick processor initialized")
     
     for tick in ticks:
         # Check if this is our instrument
@@ -909,12 +911,15 @@ def on_ticks(ws, ticks):
             except:
                 tick_time = datetime.now()
         
-        # Stop processing after 3:30 PM (market closed)
-        if is_after_325(tick_time):
+        # HARD STOP: Never process ticks after 3:20 PM
+        hour, minute = tick_time.hour, tick_time.minute
+        if hour > 15 or (hour == 15 and minute >= 20):
             if current_candle_start and is_valid_candle(current_candle):
-                # Process final candle if we haven't already
-                logger.info(f"🌆 After 3:30 PM - Processing final candle and stopping")
-                process_candle_complete(current_candle)
+                # Check if this candle started BEFORE 3:20 PM
+                candle_hour, candle_minute = current_candle_start.hour, current_candle_start.minute
+                if candle_hour < 15 or (candle_hour == 15 and candle_minute < 20):
+                    logger.info(f"🌆 Processing final candle before market close")
+                    process_candle_complete(current_candle)
                 current_candle_start = None
                 current_candle = None
             
@@ -922,31 +927,40 @@ def on_ticks(ws, ticks):
             if open_trade:
                 price = tick.get('last_price', 0)
                 if price > 0:
+                    logger.info(f"🌆 Market closed - exiting open trade")
                     exit_trade_at_325(open_trade, price, tick_time)
             
-            logger.debug(f"⏸️  Market closed (after 3:30 PM), skipping tick")
+            # Don't even log debug after 3:20 PM to avoid spam
+            if on_ticks.last_tick_time is None or (tick_time - on_ticks.last_tick_time).seconds > 60:
+                logger.info(f"⏸️  Market closed (after 3:20 PM), all processing stopped")
+                on_ticks.last_tick_time = tick_time
             continue
         
-        # Check volume to detect market activity
+        # Check volume
         volume = tick.get('volume_traded', 0)
         if volume == 0:
-            logger.debug(f"⏸️  Market closed (volume=0), skipping tick")
+            logger.debug(f"⏸️  Volume=0, skipping tick")
             continue
         
-        # Detect stale data (volume not increasing)
-        if volume == on_ticks.last_volume:
-            on_ticks.stale_count += 1
-            if on_ticks.stale_count > 10:  # 10 seconds of same volume = stale
-                logger.debug(f"⏸️  Stale data detected (volume unchanged for {on_ticks.stale_count}s), skipping tick")
-                continue
+        # Aggressive stale detection: volume must INCREASE
+        if on_ticks.last_volume > 0:  # Skip first tick
+            if volume <= on_ticks.last_volume:
+                on_ticks.stale_count += 1
+                if on_ticks.stale_count >= 5:  # 5 seconds of non-increasing volume = market closed
+                    logger.warning(f"⏸️  STALE DATA: Volume not increasing for {on_ticks.stale_count}s (Vol={volume:,})")
+                    continue
+            else:
+                if on_ticks.stale_count > 0:
+                    logger.info(f"✅ Volume increasing again: {on_ticks.last_volume:,} -> {volume:,}")
+                on_ticks.last_volume = volume
+                on_ticks.stale_count = 0
         else:
             on_ticks.last_volume = volume
-            on_ticks.stale_count = 0
         
         # Get current price
         price = tick.get('last_price', 0)
         if not price or price <= 0:
-            logger.debug(f"⚠️  Invalid price in tick: {price}")
+            logger.debug(f"⚠️  Invalid price: {price}")
             continue
         
         logger.debug(f"📶 TICK: {format_time(tick_time)} | Price={price:.2f} | Vol={volume:,}")
@@ -955,31 +969,44 @@ def on_ticks(ws, ticks):
         candle_start_time = tick_time.replace(second=0, microsecond=0)
         candle_start_time = candle_start_time.replace(minute=(candle_start_time.minute // interval_minutes) * interval_minutes)
         
-        # Initialize first candle with current price
+        # Don't start new candles after 3:15 PM
+        candle_hour, candle_minute = candle_start_time.hour, candle_start_time.minute
+        if candle_hour > 15 or (candle_hour == 15 and candle_minute >= 20):
+            logger.debug(f"⏸️  Not starting new candle after 3:15 PM")
+            continue
+        
+        # Initialize first candle
         if current_candle_start is None:
             current_candle_start = candle_start_time
             current_candle = initialize_candle(current_candle_start, price)
-            logger.info(f"🕐 NEW CANDLE STARTED: {format_time(current_candle_start)} | Starting Price={price:.2f}")
+            logger.info(f"🕐 NEW CANDLE: {format_time(current_candle_start)} | Price={price:.2f} | Vol={volume:,}")
         
-        # Check if 5-minute candle completed
+        # Check if candle completed
         candle_end = current_candle_start + timedelta(minutes=interval_minutes)
         if tick_time >= candle_end:
-            logger.info(f"⏰ CANDLE INTERVAL COMPLETE: {format_time(current_candle_start)} - {format_time(candle_end)}")
+            logger.info(f"⏰ CANDLE COMPLETE: {format_time(current_candle_start)}")
             
             if is_valid_candle(current_candle):
                 process_candle_complete(current_candle)
             else:
-                logger.warning(f"❌ Invalid candle skipped: O={current_candle.get('open')} H={current_candle.get('high')} L={current_candle.get('low')} C={current_candle.get('close')}")
+                logger.warning(f"❌ Invalid candle skipped")
             
-            # Start new 5-minute candle
+            # Don't start new candle after 3:15 PM
+            if candle_end.hour > 15 or (candle_end.hour == 15 and candle_end.minute >= 20):
+                logger.info(f"🌆 Last candle processed, stopping")
+                current_candle_start = None
+                current_candle = None
+                continue
+            
+            # Start new candle
             current_candle_start = candle_end
             current_candle = initialize_candle(current_candle_start, price)
-            logger.info(f"🕐 NEW CANDLE STARTED: {format_time(current_candle_start)} | Starting Price={price:.2f}")
+            logger.info(f"🕐 NEW CANDLE: {format_time(current_candle_start)} | Price={price:.2f}")
         
-        # Update current candle with this tick
+        # Update current candle
         current_candle = update_candle_with_tick(current_candle, tick)
         
-        # Check for real-time trade exits (stop-loss or target hit)
+        # Check for trade exits
         if open_trade:
             check_tick_exit(price, tick_time)
 
