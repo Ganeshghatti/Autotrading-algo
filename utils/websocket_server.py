@@ -158,17 +158,30 @@ def is_valid_candle(candle):
     
     return True
 
-def initialize_candle(tick_time):
-    """Initialize a new candle"""
-    return {
-        'open': None,
-        'high': None,
-        'low': None,
-        'close': None,
-        'volume': 0,
-        'date': tick_time,
-        'timestamp': tick_time
-    }
+def initialize_candle(tick_time, initial_price=None):
+    """Initialize a new candle with optional starting price"""
+    if initial_price and initial_price > 0:
+        # If we have an initial price, use it for OHLC
+        return {
+            'open': initial_price,
+            'high': initial_price,
+            'low': initial_price,
+            'close': initial_price,
+            'volume': 0,
+            'date': tick_time,
+            'timestamp': tick_time
+        }
+    else:
+        # No price yet, set to None
+        return {
+            'open': None,
+            'high': None,
+            'low': None,
+            'close': None,
+            'volume': 0,
+            'date': tick_time,
+            'timestamp': tick_time
+        }
 
 def update_candle_with_tick(candle, tick):
     """Update candle OHLC with new tick data"""
@@ -179,15 +192,16 @@ def update_candle_with_tick(candle, tick):
     if not price or price <= 0:
         return candle
     
-    # Initialize or update OHLC
+    # Initialize OHLC if not set (shouldn't happen with new initialization)
     if candle['open'] is None:
         candle['open'] = candle['high'] = candle['low'] = candle['close'] = price
     else:
+        # Update high, low, close (open never changes after first set)
         candle['high'] = max(candle['high'], price)
         candle['low'] = min(candle['low'], price)
         candle['close'] = price
     
-    # Update volume
+    # Update volume (use cumulative volume from exchange)
     candle['volume'] = tick.get('volume_traded', 0) or candle['volume']
     
     return candle
@@ -759,7 +773,7 @@ def process_candle_complete(candle):
     if not candle_date:
         return
     
-    logger.info(f"Candle: {format_time(candle_date)} | O={candle['open']:.2f} H={candle['high']:.2f} L={candle['low']:.2f} C={candle['close']:.2f}")
+    logger.info(f"✅ Completed Candle: {format_time(candle_date)} | O={candle['open']:.2f} H={candle['high']:.2f} L={candle['low']:.2f} C={candle['close']:.2f} | Vol={candle.get('volume', 0)}")
     
     # Skip processing outside market hours, first candle, or after 3:25 PM
     if not is_market_hours(candle_date):
@@ -775,20 +789,23 @@ def process_candle_complete(candle):
         pending_alert = None
         return
     
-    # Add candle to list (check for duplicates)
+    # Add candle to list (check for duplicates) - IMPORTANT: Add a COPY, not reference!
     candle_timestamp = candle_date.isoformat() if isinstance(candle_date, datetime) else str(candle_date)
+    
+    # Create a copy of the candle to prevent mutation issues
+    candle_copy = candle.copy()
     
     for idx, existing in enumerate(candles):
         existing_ts = existing.get('date')
         if existing_ts:
             existing_key = existing_ts.isoformat() if isinstance(existing_ts, datetime) else str(existing_ts)
             if existing_key == candle_timestamp:
-                candles[idx] = candle
+                candles[idx] = candle_copy
                 logger.debug(f"Updated existing candle at index {idx}")
                 return  # Early return after update
     
-    # Add new candle
-    candles.append(candle)
+    # Add new candle copy
+    candles.append(candle_copy)
     if len(candles) > 50:
         candles.pop(0)
     
@@ -873,25 +890,31 @@ def on_ticks(ws, ticks):
         if not is_market_hours(tick_time):
             continue
         
+        # Get current price for candle initialization
+        price = tick.get('last_price', 0)
+        
         # Round to 5-minute interval
         candle_start_time = tick_time.replace(second=0, microsecond=0)
         candle_start_time = candle_start_time.replace(minute=(candle_start_time.minute // interval_minutes) * interval_minutes)
         
-        # Initialize first candle
+        # Initialize first candle with current price
         if current_candle_start is None:
             current_candle_start = candle_start_time
-            current_candle = initialize_candle(current_candle_start)
-            logger.info(f"🕐 New candle started: {format_time(current_candle_start)}")
+            current_candle = initialize_candle(current_candle_start, price)
+            logger.info(f"🕐 New candle started: {format_time(current_candle_start)} at {price}")
         
         # Check if candle completed
         candle_end = current_candle_start + timedelta(minutes=interval_minutes)
         if tick_time >= candle_end:
             if is_valid_candle(current_candle):
                 process_candle_complete(current_candle)
+            else:
+                logger.warning(f"⚠️  Invalid candle skipped: O={current_candle.get('open')} H={current_candle.get('high')} L={current_candle.get('low')} C={current_candle.get('close')}")
             
+            # Start new candle with current price
             current_candle_start = candle_end
-            current_candle = initialize_candle(current_candle_start)
-            logger.info(f"🕐 New candle started: {format_time(current_candle_start)}")
+            current_candle = initialize_candle(current_candle_start, price)
+            logger.info(f"🕐 New candle started: {format_time(current_candle_start)} at {price}")
         
         # Update current candle
         current_candle = update_candle_with_tick(current_candle, tick)
