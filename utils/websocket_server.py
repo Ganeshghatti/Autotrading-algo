@@ -69,7 +69,7 @@ load_dotenv(env_path)
 # ============================================================================
 # GLOBAL STATE FOR TRADING STRATEGY
 # ============================================================================
-candles = []  # Store OHLC candles for RSI calculation (max 50 in memory, loaded from file on startup)
+candles = []  # Store OHLC candles for RSI calculation (max 14 in memory for RSI)
 open_trade = None  # Current open trade (only 1 trade at a time)
 pending_alert = None  # Alert candle waiting for next candle to check entry
 current_candle = None  # Current 5-minute candle being built from ticks
@@ -84,6 +84,8 @@ reconnect_interval = 600  # 10 minutes in seconds
 should_reconnect = True  # Flag to control automatic reconnection
 reconnect_thread = None  # Background thread for reconnection
 is_connected = False  # Track if WebSocket is currently connected
+RSI_PERIOD = 14  # RSI calculation period (need 14 candles minimum)
+MAX_CANDLES = 14  # Maximum candles to keep in memory (exactly what we need for RSI)
 
 # Setup logging to both file and console
 logging.basicConfig(
@@ -100,18 +102,20 @@ logger = logging.getLogger(__name__)
 # CANDLE DATA MANAGEMENT
 # ============================================================================
 # Candle Data Flow:
-# 1. Ticks arrive via WebSocket -> on_ticks()
-# 2. Ticks update current_candle -> update_candle_with_tick()
-# 3. When 5 minutes complete, current_candle is finalized
+# 1. Ticks arrive every second via WebSocket -> on_ticks()
+# 2. Ticks update current_candle in real-time -> update_candle_with_tick()
+# 3. Every 5 minutes, current_candle is completed and saved
 # 4. Valid candles are added to candles list -> process_candle_complete()
-# 5. Duplicates are removed and candles saved to JSON -> save_candles_to_file()
+# 5. Only completed candles (at 5-min intervals) are saved to JSON
 # 6. On startup, candles are loaded from JSON -> load_candles_from_file()
 #
 # Key Principles:
-# - Only valid candles (with complete OHLC) are saved
-# - Duplicates are removed based on timestamp
-# - Maximum 50 candles kept in memory for RSI calculation
-# - Candles are saved atomically (temp file + rename)
+# - Keep exactly 14 candles in memory for RSI calculation (14-period RSI)
+# - Save candles only at 5-minute intervals (not on every tick)
+# - First 14 candles (70 minutes) = data collection, no trading
+# - After 14 candles accumulated = start RSI calculation and trading
+# - Volume > 0 indicates market is open
+# - Save first and last candles of day but don't trade on them
 # ============================================================================
 
 def format_time(dt):
@@ -226,27 +230,29 @@ def deserialize_candle(candle_dict):
     return deserialized
 
 def load_candles_from_file():
-    """Load candles from JSON file"""
+    """Load candles from JSON file on startup
+    
+    Loads up to 14 candles (needed for RSI calculation).
+    """
     global candles
     
     # Always start with empty list
     candles = []
     
     if not os.path.exists(CANDLES_FILE):
-        logger.info("Candles file not found, starting with empty candles list")
+        logger.info("📂 Candles file not found, starting fresh")
         return
     
     try:
         with open(CANDLES_FILE, 'r') as f:
             candles_data = json.load(f)
             
-            # Validate that we have actual candle data, not empty or corrupted
             if not candles_data or not isinstance(candles_data, list):
-                logger.warning("Candles file is empty or invalid, starting with empty list")
+                logger.warning("⚠️  Candles file is empty or invalid")
                 return
             
             if len(candles_data) == 0:
-                logger.info("Candles file contains no data, starting with empty list")
+                logger.info("📂 Candles file is empty, starting fresh")
                 return
             
             # Deserialize and validate each candle
@@ -255,128 +261,56 @@ def load_candles_from_file():
                 try:
                     candle = deserialize_candle(candle_dict)
                     
-                    # Validate candle has required fields
-                    if candle.get('open') is None or candle.get('close') is None:
-                        logger.debug(f"Skipping invalid candle at index {idx} (missing OHLC)")
-                        continue
-                    
-                    if not candle.get('date') and not candle.get('timestamp'):
-                        logger.debug(f"Skipping candle at index {idx} (missing timestamp)")
+                    # Validate candle
+                    if not is_valid_candle(candle):
+                        logger.debug(f"Skipping invalid candle at index {idx}")
                         continue
                     
                     loaded_candles.append(candle)
                 except Exception as e:
-                    logger.warning(f"Error deserializing candle at index {idx}: {e}")
+                    logger.warning(f"⚠️  Error deserializing candle at index {idx}: {e}")
                     continue
             
             if len(loaded_candles) == 0:
-                logger.warning("No valid candles found in file, starting with empty list")
+                logger.warning("⚠️  No valid candles found in file")
                 return
             
-            # Deduplicate loaded candles
-            unique_candles = deduplicate_candles(loaded_candles)
+            # Keep only last 14 candles (what we need for RSI)
+            candles = loaded_candles[-MAX_CANDLES:]
             
-            # Keep only last 50 candles in memory for RSI calculation
-            if len(unique_candles) > 50:
-                candles = unique_candles[-50:]
-            else:
-                candles = unique_candles
-            
-            logger.info(f"✅ Loaded {len(candles)} valid candles from {CANDLES_FILE}")
+            logger.info(f"✅ LOADED: {len(candles)} candles from {CANDLES_FILE}")
             
     except json.JSONDecodeError as e:
-        logger.error(f"Error parsing candles JSON file: {e}. Starting with empty list.")
+        logger.error(f"❌ Error parsing JSON: {e}")
         candles = []
     except Exception as e:
-        logger.error(f"Error loading candles from file: {e}")
+        logger.error(f"❌ Error loading candles: {e}")
         candles = []
         import traceback
         traceback.print_exc()
 
-def deduplicate_candles(candles_list):
-    """Remove duplicate candles based on timestamp, keeping the most recent version
+def save_candles_to_file():
+    """Save candles to JSON file - only called when a 5-minute candle completes
     
-    Returns:
-        list: Deduplicated candles sorted chronologically
-    """
-    if not candles_list:
-        return []
-    
-    seen_timestamps = {}
-    invalid_count = 0
-    duplicate_count = 0
-    
-    for idx, candle in enumerate(candles_list):
-        # Validate candle has required fields
-        if not is_valid_candle(candle):
-            invalid_count += 1
-            logger.debug(f"💾 Skipping invalid candle at index {idx}")
-            continue
-        
-        candle_timestamp = candle.get('date') or candle.get('timestamp')
-        if not candle_timestamp:
-            invalid_count += 1
-            logger.debug(f"💾 Skipping candle without timestamp at index {idx}")
-            continue
-        
-        # Convert to string key for comparison
-        if isinstance(candle_timestamp, datetime):
-            timestamp_key = candle_timestamp.isoformat()
-        else:
-            timestamp_key = str(candle_timestamp)
-        
-        # Track duplicates
-        if timestamp_key in seen_timestamps:
-            duplicate_count += 1
-            logger.debug(f"💾 Found duplicate candle with timestamp: {timestamp_key}")
-        
-        # Keep the latest version of each timestamp (later index overwrites)
-        seen_timestamps[timestamp_key] = candle
-    
-    # Return deduplicated candles in chronological order
-    unique_candles = list(seen_timestamps.values())
-    
-    # Sort by timestamp to ensure chronological order
-    try:
-        unique_candles.sort(key=lambda c: c.get('date') or c.get('timestamp'))
-    except Exception as e:
-        logger.warning(f"💾 Error sorting candles: {e}")
-    
-    if invalid_count > 0 or duplicate_count > 0:
-        logger.info(f"💾 Deduplication: {len(candles_list)} input -> {len(unique_candles)} unique (removed {invalid_count} invalid, {duplicate_count} duplicates)")
-    
-    return unique_candles
-
-def save_candles_to_file(force=False):
-    """Save candles to JSON file (keep last 50 for RSI calculation)
-    
-    Args:
-        force: If True, save even outside market hours (used on shutdown)
+    Saves exactly the last 14 candles needed for RSI calculation.
+    Called only at 5-minute intervals, not on every tick.
     """
     global candles
     
-    # Only save during market hours unless forced
-    if not force:
-        current_time = datetime.now()
-        if not is_market_hours(current_time):
-            logger.debug(f"💾 Skipping candle save - outside market hours")
-            return
-    
     try:
-        # Validate candles list
         if not candles or len(candles) == 0:
-            logger.debug(f"💾 No candles to save")
+            logger.debug(f"💾 No candles to save yet")
             return
         
-        # Deduplicate and validate candles
-        unique_candles = deduplicate_candles(candles)
+        # Validate all candles before saving
+        valid_candles = [c for c in candles if is_valid_candle(c)]
         
-        if len(unique_candles) == 0:
-            logger.warning(f"💾 No valid candles after deduplication")
+        if len(valid_candles) == 0:
+            logger.warning(f"💾 No valid candles to save")
             return
         
-        # Keep only last 50 unique candles to save
-        candles_to_save = unique_candles[-50:] if len(unique_candles) > 50 else unique_candles
+        # Keep only last 14 candles (what we need for RSI)
+        candles_to_save = valid_candles[-MAX_CANDLES:]
         
         # Serialize candles (convert datetime to string)
         serialized_candles = [serialize_candle(c) for c in candles_to_save]
@@ -386,32 +320,31 @@ def save_candles_to_file(force=False):
         with open(temp_file, 'w') as f:
             json.dump(serialized_candles, f, indent=2)
         
-        # Rename temp file to actual file (atomic on most systems)
+        # Rename temp file to actual file (atomic operation)
         os.replace(temp_file, CANDLES_FILE)
         
-        duplicates_removed = len(candles) - len(unique_candles)
-        if duplicates_removed > 0:
-            logger.info(f"💾 Saved {len(candles_to_save)} unique candles (removed {duplicates_removed} duplicates)")
-        else:
-            logger.info(f"💾 Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
-            
-        # Update global candles list to match what was saved (remove duplicates from memory)
+        logger.info(f"💾 SAVED: {len(candles_to_save)} candles to {CANDLES_FILE}")
+        
+        # Update global candles list
         candles = candles_to_save.copy()
         
     except Exception as e:
-        logger.error(f"Error saving candles to file: {e}")
+        logger.error(f"❌ ERROR saving candles: {e}")
         import traceback
         traceback.print_exc()
 
 def calculate_rsi_from_candles(candles_list, period=14):
-    """Calculate RSI using TA-Lib from candle list"""
-    if len(candles_list) < period + 1:
-        logger.debug(f"Not enough candles for RSI: {len(candles_list)} < {period + 1}")
+    """Calculate RSI using TA-Lib from candle list
+    
+    Requires exactly 14 candles for accurate RSI calculation.
+    """
+    if len(candles_list) < period:
+        logger.debug(f"⏳ Not enough candles for RSI: {len(candles_list)}/{period}")
         return None
     
     closes = [candle['close'] for candle in candles_list if candle['close'] is not None]
-    if len(closes) < period + 1:
-        logger.debug(f"Not enough valid closes for RSI: {len(closes)} < {period + 1}")
+    if len(closes) < period:
+        logger.debug(f"⏳ Not enough valid closes for RSI: {len(closes)}/{period}")
         return None
     
     closes_array = np.array(closes, dtype=float)
@@ -419,9 +352,10 @@ def calculate_rsi_from_candles(candles_list, period=14):
     
     if len(rsi) > 0 and not np.isnan(rsi[-1]):
         rsi_value = float(rsi[-1])
-        logger.info(f"[RSI] Calculated: {rsi_value:.2f} (from {len(candles_list)} candles)")
+        logger.info(f"📊 RSI = {rsi_value:.2f} (from {len(candles_list)} candles)")
         return rsi_value
-    logger.debug(f"RSI calculation returned NaN or empty")
+    
+    logger.debug(f"❌ RSI calculation failed (NaN)")
     return None
 
 def is_first_candle_of_day(candle_time):
@@ -762,75 +696,101 @@ def exit_trade_at_325(trade, exit_price, exit_time):
     open_trade = None
 
 def process_candle_complete(candle):
-    """Process a completed 5-minute candle"""
+    """Process a completed 5-minute candle
+    
+    This is called ONLY when a 5-minute candle completes (not on every tick).
+    """
     global pending_alert, open_trade
+    
+    logger.info(f"{'='*80}")
+    logger.info(f"🕐 CANDLE COMPLETED")
     
     # Validate candle
     if not candle or not is_valid_candle(candle):
+        logger.warning(f"❌ Invalid candle, skipping")
         return
     
     candle_date = candle.get('date')
     if not candle_date:
+        logger.warning(f"❌ Candle has no date, skipping")
         return
     
-    logger.info(f"✅ Completed Candle: {format_time(candle_date)} | O={candle['open']:.2f} H={candle['high']:.2f} L={candle['low']:.2f} C={candle['close']:.2f} | Vol={candle.get('volume', 0)}")
+    # Log completed candle details
+    logger.info(f"📅 Time: {format_time(candle_date)}")
+    logger.info(f"📊 OHLC: O={candle['open']:.2f} H={candle['high']:.2f} L={candle['low']:.2f} C={candle['close']:.2f}")
+    logger.info(f"📈 Volume: {candle.get('volume', 0):,}")
     
-    # Skip processing outside market hours, first candle, or after 3:25 PM
-    if not is_market_hours(candle_date):
-        return
+    # Check if this is first or last candle of day (save but don't trade)
+    is_first = is_first_candle_of_day(candle_date)
+    is_last = is_after_325(candle_date)
     
-    if is_first_candle_of_day(candle_date):
-        logger.info("Skipping first candle of day")
-        return
-    
-    if is_after_325(candle_date):
+    if is_first:
+        logger.info(f"🌅 FIRST CANDLE OF DAY - Saving but not trading")
+    if is_last:
+        logger.info(f"🌆 LAST CANDLE (after 3:25 PM) - Closing trades")
         if open_trade and candle['close'] > 0:
             exit_trade_at_325(open_trade, candle['close'], candle_date)
         pending_alert = None
-        return
     
-    # Add candle to list (check for duplicates) - IMPORTANT: Add a COPY, not reference!
-    candle_timestamp = candle_date.isoformat() if isinstance(candle_date, datetime) else str(candle_date)
-    
-    # Create a copy of the candle to prevent mutation issues
+    # Add candle to list - IMPORTANT: Add a COPY, not reference!
     candle_copy = candle.copy()
-    
-    for idx, existing in enumerate(candles):
-        existing_ts = existing.get('date')
-        if existing_ts:
-            existing_key = existing_ts.isoformat() if isinstance(existing_ts, datetime) else str(existing_ts)
-            if existing_key == candle_timestamp:
-                candles[idx] = candle_copy
-                logger.debug(f"Updated existing candle at index {idx}")
-                return  # Early return after update
-    
-    # Add new candle copy
     candles.append(candle_copy)
-    if len(candles) > 50:
+    
+    # Keep only last 14 candles (what we need for RSI)
+    if len(candles) > MAX_CANDLES:
         candles.pop(0)
     
-    logger.info(f"Candles in memory: {len(candles)}")
+    logger.info(f"💾 Candles in memory: {len(candles)}/{MAX_CANDLES}")
     
-    # Calculate RSI and save candles
-    rsi = calculate_rsi_from_candles(candles, period=14)
+    # Save candles to file (only at 5-minute intervals)
     save_candles_to_file()
     
+    # Need at least 14 candles to calculate RSI
+    if len(candles) < RSI_PERIOD:
+        logger.info(f"⏳ Accumulating data... Need {RSI_PERIOD - len(candles)} more candles for RSI")
+        logger.info(f"{'='*80}\n")
+        return
+    
+    # Calculate RSI
+    rsi = calculate_rsi_from_candles(candles, period=RSI_PERIOD)
+    if not rsi:
+        logger.warning(f"❌ RSI calculation failed")
+        logger.info(f"{'='*80}\n")
+        return
+    
+    # Don't trade on first or last candle of day
+    if is_first or is_last:
+        logger.info(f"⚠️  Skipping trades (first/last candle)")
+        logger.info(f"{'='*80}\n")
+        return
+    
     # Check for alert (RSI > 60 or RSI < 40, range < 40 points)
-    if rsi:
-        alert = check_alert_candle(candle, rsi)
-        if alert and (alert['high'] - alert['low']) < 40:
+    alert = check_alert_candle(candle, rsi)
+    if alert:
+        candle_range = alert['high'] - alert['low']
+        logger.info(f"🔔 ALERT DETECTED: {alert['alert_type']}")
+        logger.info(f"📏 Candle Range: {candle_range:.2f} points")
+        
+        if candle_range < 40:
             pending_alert = alert
-            logger.info(f"⚠️  ALERT: {alert['alert_type']} | RSI={rsi:.2f} | Range={alert['high'] - alert['low']:.2f}")
+            logger.info(f"✅ ALERT VALIDATED (range < 40)")
+        else:
+            logger.info(f"❌ ALERT REJECTED (range >= 40)")
     
     # Check trade entry from pending alert
     if pending_alert and not open_trade:
+        logger.info(f"🔍 Checking trade entry for pending alert...")
         check_trade_entry(candle, pending_alert)
         if open_trade:
             pending_alert = None
+            logger.info(f"✅ Trade entered, alert cleared")
     
     # Check trade exit
     if open_trade:
+        logger.info(f"🔍 Checking trade exit...")
         check_trade_exit(candle)
+    
+    logger.info(f"{'='*80}\n")
 
 def check_tick_exit(price, tick_time):
     """Check and execute trade exit based on current tick price"""
@@ -871,11 +831,22 @@ def check_tick_exit(price, tick_time):
     open_trade = None
 
 def on_ticks(ws, ticks):
-    """Handle incoming ticks"""
+    """Handle incoming ticks - called every second
+    
+    Ticks arrive every second and update the current 5-minute candle.
+    Market open/close is determined by volume > 0.
+    """
     global current_candle, current_candle_start, open_trade
     
     for tick in ticks:
+        # Check if this is our instrument
         if tick.get('instrument_token') != instrument_token:
+            continue
+        
+        # Check if market is open (volume > 0 indicates trading is happening)
+        volume = tick.get('volume_traded', 0)
+        if volume == 0:
+            logger.debug(f"⏸️  Market closed (volume=0), skipping tick")
             continue
         
         # Get tick time
@@ -886,12 +857,13 @@ def on_ticks(ws, ticks):
             except:
                 tick_time = datetime.now()
         
-        # Skip if outside market hours
-        if not is_market_hours(tick_time):
+        # Get current price
+        price = tick.get('last_price', 0)
+        if not price or price <= 0:
+            logger.debug(f"⚠️  Invalid price in tick: {price}")
             continue
         
-        # Get current price for candle initialization
-        price = tick.get('last_price', 0)
+        logger.debug(f"📶 TICK: {format_time(tick_time)} | Price={price:.2f} | Vol={volume:,}")
         
         # Round to 5-minute interval
         candle_start_time = tick_time.replace(second=0, microsecond=0)
@@ -901,30 +873,34 @@ def on_ticks(ws, ticks):
         if current_candle_start is None:
             current_candle_start = candle_start_time
             current_candle = initialize_candle(current_candle_start, price)
-            logger.info(f"🕐 New candle started: {format_time(current_candle_start)} at {price}")
+            logger.info(f"🕐 NEW CANDLE STARTED: {format_time(current_candle_start)} | Starting Price={price:.2f}")
         
-        # Check if candle completed
+        # Check if 5-minute candle completed
         candle_end = current_candle_start + timedelta(minutes=interval_minutes)
         if tick_time >= candle_end:
+            logger.info(f"⏰ CANDLE INTERVAL COMPLETE: {format_time(current_candle_start)} - {format_time(candle_end)}")
+            
             if is_valid_candle(current_candle):
                 process_candle_complete(current_candle)
             else:
-                logger.warning(f"⚠️  Invalid candle skipped: O={current_candle.get('open')} H={current_candle.get('high')} L={current_candle.get('low')} C={current_candle.get('close')}")
+                logger.warning(f"❌ Invalid candle skipped: O={current_candle.get('open')} H={current_candle.get('high')} L={current_candle.get('low')} C={current_candle.get('close')}")
             
-            # Start new candle with current price
+            # Start new 5-minute candle
             current_candle_start = candle_end
             current_candle = initialize_candle(current_candle_start, price)
-            logger.info(f"🕐 New candle started: {format_time(current_candle_start)} at {price}")
+            logger.info(f"🕐 NEW CANDLE STARTED: {format_time(current_candle_start)} | Starting Price={price:.2f}")
         
-        # Update current candle
+        # Update current candle with this tick
         current_candle = update_candle_with_tick(current_candle, tick)
         
-        # Check for trade exits
-        price = tick.get('last_price', 0)
-        if open_trade and is_after_325(tick_time) and price > 0:
-            exit_trade_at_325(open_trade, price, tick_time)
-        elif open_trade:
-            check_tick_exit(price, tick_time)
+        # Check for real-time trade exits (stop-loss or target hit)
+        if open_trade:
+            if is_after_325(tick_time):
+                logger.info(f"🌆 Market closing time (3:25 PM), exiting trade")
+                if price > 0:
+                    exit_trade_at_325(open_trade, price, tick_time)
+            else:
+                check_tick_exit(price, tick_time)
 
 def on_connect(ws, response):
     """Handle websocket connection"""
@@ -1075,29 +1051,43 @@ def start_websocket_server():
     if not access_token:
         raise ValueError("Access token not found. Please login first.")
     
+    logger.info(f"{'='*80}")
+    logger.info(f"🚀 STARTING TRADING BOT at {format_time(datetime.now())}")
+    logger.info(f"{'='*80}")
+    
     # Load candles from file on startup
-    logger.info(f"[INIT] Loading candles from file at {format_time(datetime.now())}...")
+    logger.info(f"📂 Loading historical candles...")
     load_candles_from_file()
     
     # Initialize KiteConnect for live trading
     if LIVE_TRADING:
-        logger.warning("[INIT] 🔴 LIVE TRADING MODE ENABLED - Real orders will be placed!")
+        logger.warning("🔴 LIVE TRADING MODE - Real orders will be placed!")
         kite = KiteConnect(api_key=api_key)
         kite.set_access_token(access_token.strip())
-        logger.info("[INIT] ✅ KiteConnect initialized for live trading")
+        logger.info("✅ KiteConnect initialized for LIVE trading")
     else:
-        logger.info("[INIT] 📝 PAPER TRADING MODE - Trades will be saved to paper_trades.json")
-        logger.info("[INIT] ⚠️  To enable live trading, set LIVE_TRADING = True at the top of websocket_server.py")
+        logger.info("📝 PAPER TRADING MODE - Trades saved to paper_trades.json")
+        logger.info("⚠️  Set LIVE_TRADING = True for real trading")
     
-    logger.info(f"[INIT] Starting WebSocket server with RSI trading strategy at {format_time(datetime.now())}")
-    logger.info(f"[INIT] Trading Configuration:")
-    logger.info(f"  - Lots: {TRADING_LOTS} lot(s)")
-    logger.info(f"  - Quantity: {TRADING_QUANTITY} shares (1 lot = 50 shares for NIFTY)")
-    logger.info(f"  - Product: {TRADING_PRODUCT} ({'Intraday' if TRADING_PRODUCT == 'MIS' else 'Overnight' if TRADING_PRODUCT == 'NRML' else 'Unknown'})")
-    logger.info(f"  - Mode: {'🔴 LIVE TRADING' if LIVE_TRADING else '📝 PAPER TRADING'}")
-    logger.info(f"  - Candles Storage: {CANDLES_FILE} ({len(candles)} candles loaded)")
-    logger.info(f"  - Log File: {LOG_FILE}")
-    logger.info(f"  - Reconnection: Enabled (retry every {reconnect_interval // 60} minutes on failure)")
+    logger.info(f"\n⚙️  TRADING CONFIGURATION:")
+    logger.info(f"  📊 Strategy: RSI-based (14-period)")
+    logger.info(f"  📈 Instrument: NIFTY Futures (token: {os.getenv('INSTRUMENT_TOKEN', '12683010')})")
+    logger.info(f"  💰 Lots: {TRADING_LOTS} lot(s)")
+    logger.info(f"  📦 Quantity: {TRADING_QUANTITY} shares")
+    logger.info(f"  🏷️  Product: {TRADING_PRODUCT}")
+    logger.info(f"  🎯 Mode: {'🔴 LIVE' if LIVE_TRADING else '📝 PAPER'}")
+    logger.info(f"  📁 Candles File: {CANDLES_FILE}")
+    logger.info(f"  💾 Candles Loaded: {len(candles)}/{MAX_CANDLES}")
+    logger.info(f"  📝 Log File: {LOG_FILE}")
+    logger.info(f"  🔄 Reconnection: Every {reconnect_interval // 60} minutes")
+    logger.info(f"\n⏰ TRADING RULES:")
+    logger.info(f"  • Ticks processed every second")
+    logger.info(f"  • Candles built on 5-minute intervals")
+    logger.info(f"  • Need {RSI_PERIOD} candles ({RSI_PERIOD * 5} minutes) before trading")
+    logger.info(f"  • First and last candles of day: saved but no trades")
+    logger.info(f"  • Market open/close detected by volume > 0")
+    logger.info(f"  • Auto-exit all trades at 3:25 PM")
+    logger.info(f"{'='*80}\n")
     
     # Create and connect WebSocket
     try:
@@ -1131,23 +1121,27 @@ def start_websocket_server():
     return kws
 
 def cleanup_on_exit():
-    """Save candles before exiting (always save on shutdown, regardless of market hours)"""
+    """Save candles before exiting"""
     global should_reconnect, kws
     
-    logger.info(f"[SHUTDOWN] Saving candles before exit at {format_time(datetime.now())}...")
+    logger.info(f"{'='*80}")
+    logger.info(f"🛑 SHUTDOWN INITIATED at {format_time(datetime.now())}")
     should_reconnect = False  # Stop reconnection attempts
     
-    # Force save on shutdown (bypass market hours check)
-    save_candles_to_file(force=True)
+    # Save candles on shutdown
+    logger.info(f"💾 Saving candles before exit...")
+    save_candles_to_file()
     
     # Close websocket connection
     if kws:
         try:
             kws.close()
-        except:
-            pass
+            logger.info("✅ WebSocket connection closed")
+        except Exception as e:
+            logger.error(f"❌ Error closing WebSocket: {e}")
     
-    logger.info("[SHUTDOWN] ✅ WebSocket closed")
+    logger.info(f"✅ SHUTDOWN COMPLETE")
+    logger.info(f"{'='*80}\n")
 
 def signal_handler(sig, frame):
     """Handle shutdown signals"""
