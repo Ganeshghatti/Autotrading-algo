@@ -229,6 +229,58 @@ def deserialize_candle(candle_dict):
                 deserialized[key] = datetime.now()
     return deserialized
 
+def fetch_historical_candles_from_kite(instrument_token, from_date, to_date, interval="5minute"):
+    """Fetch historical candles from Kite API
+    
+    This gives us accurate OHLC data that matches TradingView and other platforms.
+    """
+    global kite
+    
+    if not kite:
+        logger.warning("⚠️  KiteConnect not initialized, cannot fetch historical data")
+        return []
+    
+    try:
+        logger.info(f"📥 Fetching historical candles from Kite API...")
+        logger.info(f"   Instrument: {instrument_token}")
+        logger.info(f"   Period: {from_date} to {to_date}")
+        logger.info(f"   Interval: {interval}")
+        
+        # Fetch historical data from Kite
+        historical_data = kite.historical_data(
+            instrument_token=instrument_token,
+            from_date=from_date,
+            to_date=to_date,
+            interval=interval
+        )
+        
+        if not historical_data:
+            logger.warning("⚠️  No historical data received from Kite")
+            return []
+        
+        # Convert to our candle format
+        candles_list = []
+        for data in historical_data:
+            candle = {
+                'open': float(data['open']),
+                'high': float(data['high']),
+                'low': float(data['low']),
+                'close': float(data['close']),
+                'volume': int(data['volume']),
+                'date': data['date'],
+                'timestamp': data['date']
+            }
+            candles_list.append(candle)
+        
+        logger.info(f"✅ Fetched {len(candles_list)} historical candles from Kite")
+        return candles_list
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching historical candles: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
 def load_candles_from_file():
     """Load candles from JSON file on startup
     
@@ -834,19 +886,19 @@ def on_ticks(ws, ticks):
     """Handle incoming ticks - called every second
     
     Ticks arrive every second and update the current 5-minute candle.
-    Market open/close is determined by volume > 0.
+    Market open/close is determined by volume increasing.
     """
     global current_candle, current_candle_start, open_trade
+    
+    # Track last seen volume to detect stale data
+    if not hasattr(on_ticks, 'last_volume'):
+        on_ticks.last_volume = 0
+    if not hasattr(on_ticks, 'stale_count'):
+        on_ticks.stale_count = 0
     
     for tick in ticks:
         # Check if this is our instrument
         if tick.get('instrument_token') != instrument_token:
-            continue
-        
-        # Check if market is open (volume > 0 indicates trading is happening)
-        volume = tick.get('volume_traded', 0)
-        if volume == 0:
-            logger.debug(f"⏸️  Market closed (volume=0), skipping tick")
             continue
         
         # Get tick time
@@ -856,6 +908,40 @@ def on_ticks(ws, ticks):
                 tick_time = datetime.strptime(tick_time.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
             except:
                 tick_time = datetime.now()
+        
+        # Stop processing after 3:30 PM (market closed)
+        if is_after_325(tick_time):
+            if current_candle_start and is_valid_candle(current_candle):
+                # Process final candle if we haven't already
+                logger.info(f"🌆 After 3:30 PM - Processing final candle and stopping")
+                process_candle_complete(current_candle)
+                current_candle_start = None
+                current_candle = None
+            
+            # Exit any open trades
+            if open_trade:
+                price = tick.get('last_price', 0)
+                if price > 0:
+                    exit_trade_at_325(open_trade, price, tick_time)
+            
+            logger.debug(f"⏸️  Market closed (after 3:30 PM), skipping tick")
+            continue
+        
+        # Check volume to detect market activity
+        volume = tick.get('volume_traded', 0)
+        if volume == 0:
+            logger.debug(f"⏸️  Market closed (volume=0), skipping tick")
+            continue
+        
+        # Detect stale data (volume not increasing)
+        if volume == on_ticks.last_volume:
+            on_ticks.stale_count += 1
+            if on_ticks.stale_count > 10:  # 10 seconds of same volume = stale
+                logger.debug(f"⏸️  Stale data detected (volume unchanged for {on_ticks.stale_count}s), skipping tick")
+                continue
+        else:
+            on_ticks.last_volume = volume
+            on_ticks.stale_count = 0
         
         # Get current price
         price = tick.get('last_price', 0)
@@ -895,12 +981,7 @@ def on_ticks(ws, ticks):
         
         # Check for real-time trade exits (stop-loss or target hit)
         if open_trade:
-            if is_after_325(tick_time):
-                logger.info(f"🌆 Market closing time (3:25 PM), exiting trade")
-                if price > 0:
-                    exit_trade_at_325(open_trade, price, tick_time)
-            else:
-                check_tick_exit(price, tick_time)
+            check_tick_exit(price, tick_time)
 
 def on_connect(ws, response):
     """Handle websocket connection"""
@@ -1055,19 +1136,49 @@ def start_websocket_server():
     logger.info(f"🚀 STARTING TRADING BOT at {format_time(datetime.now())}")
     logger.info(f"{'='*80}")
     
-    # Load candles from file on startup
-    logger.info(f"📂 Loading historical candles...")
-    load_candles_from_file()
+    # Initialize KiteConnect FIRST (needed for fetching historical data)
+    kite = KiteConnect(api_key=api_key)
+    kite.set_access_token(access_token.strip())
     
-    # Initialize KiteConnect for live trading
     if LIVE_TRADING:
         logger.warning("🔴 LIVE TRADING MODE - Real orders will be placed!")
-        kite = KiteConnect(api_key=api_key)
-        kite.set_access_token(access_token.strip())
-        logger.info("✅ KiteConnect initialized for LIVE trading")
     else:
         logger.info("📝 PAPER TRADING MODE - Trades saved to paper_trades.json")
         logger.info("⚠️  Set LIVE_TRADING = True for real trading")
+    
+    # Try to load candles from file first
+    logger.info(f"📂 Loading candles from file...")
+    load_candles_from_file()
+    
+    # If we don't have enough candles, fetch from Kite API
+    if len(candles) < MAX_CANDLES:
+        logger.info(f"⚠️  Only {len(candles)} candles in file, fetching from Kite API...")
+        
+        # Fetch last 14 candles (70 minutes = 14 * 5 minutes)
+        to_date = datetime.now()
+        from_date = to_date - timedelta(minutes=MAX_CANDLES * interval_minutes + 60)  # Extra 60 min buffer
+        
+        historical_candles = fetch_historical_candles_from_kite(
+            instrument_token=int(os.getenv("INSTRUMENT_TOKEN", "12683010")),
+            from_date=from_date,
+            to_date=to_date,
+            interval="5minute"
+        )
+        
+        if historical_candles:
+            # Keep only the last 14 candles
+            candles.extend(historical_candles[-MAX_CANDLES:])
+            if len(candles) > MAX_CANDLES:
+                candles = candles[-MAX_CANDLES:]
+            
+            logger.info(f"✅ Loaded {len(candles)} candles total")
+            
+            # Save to file
+            save_candles_to_file()
+        else:
+            logger.warning("⚠️  Could not fetch historical candles, will build from live ticks")
+    else:
+        logger.info(f"✅ Loaded {len(candles)} candles from file")
     
     logger.info(f"\n⚙️  TRADING CONFIGURATION:")
     logger.info(f"  📊 Strategy: RSI-based (14-period)")
