@@ -66,21 +66,23 @@ def read_from_file(filename):
 env_path = os.path.join(PROJECT_ROOT, '.env')
 load_dotenv(env_path)
 
-# Global state for trading strategy
-candles = []  # Store OHLC candles for RSI calculation (loaded from file on startup)
+# ============================================================================
+# GLOBAL STATE FOR TRADING STRATEGY
+# ============================================================================
+candles = []  # Store OHLC candles for RSI calculation (max 50 in memory, loaded from file on startup)
 open_trade = None  # Current open trade (only 1 trade at a time)
 pending_alert = None  # Alert candle waiting for next candle to check entry
-current_candle = None  # Current 5-minute candle being built
+current_candle = None  # Current 5-minute candle being built from ticks
 current_candle_start = None  # Start time of current candle
-instrument_token = None
+instrument_token = None  # NIFTY futures instrument token
 interval_minutes = 5  # 5-minute candles
 kite = None  # KiteConnect instance for live trading
-CANDLES_FILE = os.path.join(PROJECT_ROOT, "candles_data.json")  # File to store candles
+CANDLES_FILE = os.path.join(PROJECT_ROOT, "candles_data.json")  # File to store candles (persistent storage)
 LOG_FILE = os.path.join(PROJECT_ROOT, "websocket_server.log")  # Log file
-kws = None  # KiteTicker instance
+kws = None  # KiteTicker WebSocket instance
 reconnect_interval = 600  # 10 minutes in seconds
-should_reconnect = True  # Flag to control reconnection
-reconnect_thread = None  # Thread for reconnection
+should_reconnect = True  # Flag to control automatic reconnection
+reconnect_thread = None  # Background thread for reconnection
 is_connected = False  # Track if WebSocket is currently connected
 
 # Setup logging to both file and console
@@ -94,9 +96,67 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ============================================================================
+# CANDLE DATA MANAGEMENT
+# ============================================================================
+# Candle Data Flow:
+# 1. Ticks arrive via WebSocket -> on_ticks()
+# 2. Ticks update current_candle -> update_candle_with_tick()
+# 3. When 5 minutes complete, current_candle is finalized
+# 4. Valid candles are added to candles list -> process_candle_complete()
+# 5. Duplicates are removed and candles saved to JSON -> save_candles_to_file()
+# 6. On startup, candles are loaded from JSON -> load_candles_from_file()
+#
+# Key Principles:
+# - Only valid candles (with complete OHLC) are saved
+# - Duplicates are removed based on timestamp
+# - Maximum 50 candles kept in memory for RSI calculation
+# - Candles are saved atomically (temp file + rename)
+# ============================================================================
+
 def format_time(dt):
     """Format datetime (uses system timezone)"""
     return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+def is_valid_candle(candle):
+    """Validate that a candle has all required fields and valid data"""
+    if not candle:
+        return False
+    
+    # Must have timestamp
+    if not candle.get('date') and not candle.get('timestamp'):
+        return False
+    
+    # Must have OHLC data
+    if candle.get('open') is None:
+        return False
+    if candle.get('high') is None:
+        return False
+    if candle.get('low') is None:
+        return False
+    if candle.get('close') is None:
+        return False
+    
+    # Validate OHLC relationships
+    try:
+        o, h, l, c = candle['open'], candle['high'], candle['low'], candle['close']
+        
+        # High should be >= all other prices
+        if h < o or h < l or h < c:
+            return False
+        
+        # Low should be <= all other prices
+        if l > o or l > h or l > c:
+            return False
+        
+        # All prices should be positive
+        if o <= 0 or h <= 0 or l <= 0 or c <= 0:
+            return False
+            
+    except (TypeError, KeyError):
+        return False
+    
+    return True
 
 def initialize_candle(tick_time):
     """Initialize a new candle"""
@@ -111,150 +171,182 @@ def initialize_candle(tick_time):
     }
 
 def update_candle_with_tick(candle, tick):
-    """Update candle OHLC with new tick data - only during market hours and when market is open"""
-    # First check if market is closed based on tick data indicators
-    if is_market_closed_from_tick(tick):
-        logger.debug(f"⚠️  Market appears closed (volume=0 or stale data), skipping tick update")
+    """Update candle OHLC with new tick data"""
+    if not candle or not tick:
         return candle
-    
-    # Check if we're in market hours before updating
-    tick_time = tick.get('exchange_timestamp') or tick.get('last_trade_time')
-    if tick_time:
-        if isinstance(tick_time, str):
-            try:
-                tick_time = datetime.strptime(tick_time.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
-            except:
-                tick_time = datetime.now()
-        
-        # Only update candles during market hours
-        if not is_market_hours(tick_time):
-            return candle
     
     price = tick.get('last_price', 0)
-    if price == 0:
+    if not price or price <= 0:
         return candle
     
-    # IMPORTANT: Always use last_price for close (OHLC close is stale - it's from previous candle)
-    # Build candle OHLC from actual tick prices, not from stale OHLC data
-    
-    # Set open price (only on first tick of candle)
+    # Initialize or update OHLC
     if candle['open'] is None:
-        # Try to use OHLC open if available and valid, otherwise use last_price
-        tick_ohlc = tick.get('ohlc', {})
-        tick_open = tick_ohlc.get('open') if tick_ohlc else None
-        if tick_open and tick_open > 0:
-            candle['open'] = tick_open
-        else:
-            candle['open'] = price
-        candle['high'] = price
-        candle['low'] = price
-        candle['close'] = price
+        candle['open'] = candle['high'] = candle['low'] = candle['close'] = price
     else:
-        # Update high, low, and close from actual tick prices
         candle['high'] = max(candle['high'], price)
         candle['low'] = min(candle['low'], price)
-        candle['close'] = price  # Always use last_price for close (current tick price)
-        
-        # Optionally use OHLC high/low if they're higher/lower than current price
-        # (but only if they seem valid - not stale)
-        tick_ohlc = tick.get('ohlc', {})
-        if tick_ohlc:
-            tick_high = tick_ohlc.get('high')
-            tick_low = tick_ohlc.get('low')
-            
-            # Only use OHLC high/low if they're different from close (not stale)
-            # and if they expand the current range
-            if tick_high and tick_high != tick_ohlc.get('close', 0) and tick_high > candle['high']:
-                candle['high'] = tick_high
-                logger.debug(f"Using OHLC high: {tick_high} (expanded from {candle['high']})")
-            
-            if tick_low and tick_low != tick_ohlc.get('close', 0) and tick_low < candle['low']:
-                candle['low'] = tick_low
-                logger.debug(f"Using OHLC low: {tick_low} (expanded from {candle['low']})")
+        candle['close'] = price
     
     # Update volume
-    volume_traded = tick.get('volume_traded', 0)
-    if volume_traded > 0:
-        candle['volume'] = volume_traded
-    else:
-        candle['volume'] += tick.get('volume', 0)
+    candle['volume'] = tick.get('volume_traded', 0) or candle['volume']
     
     return candle
 
 def serialize_candle(candle):
     """Convert candle datetime objects to strings for JSON storage"""
     serialized = candle.copy()
-    if isinstance(serialized.get('date'), datetime):
-        serialized['date'] = serialized['date'].isoformat()
-    if isinstance(serialized.get('timestamp'), datetime):
-        serialized['timestamp'] = serialized['timestamp'].isoformat()
+    for key in ['date', 'timestamp']:
+        if isinstance(serialized.get(key), datetime):
+            serialized[key] = serialized[key].isoformat()
     return serialized
 
 def deserialize_candle(candle_dict):
     """Convert candle string dates back to datetime objects"""
     deserialized = candle_dict.copy()
-    if isinstance(deserialized.get('date'), str):
-        try:
-            deserialized['date'] = datetime.fromisoformat(deserialized['date'])
-        except:
+    for key in ['date', 'timestamp']:
+        if isinstance(deserialized.get(key), str):
             try:
-                deserialized['date'] = datetime.strptime(deserialized['date'].split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
+                deserialized[key] = datetime.fromisoformat(deserialized[key])
             except:
-                deserialized['date'] = datetime.now()
-    if isinstance(deserialized.get('timestamp'), str):
-        try:
-            deserialized['timestamp'] = datetime.fromisoformat(deserialized['timestamp'])
-        except:
-            try:
-                deserialized['timestamp'] = datetime.strptime(deserialized['timestamp'].split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
-            except:
-                deserialized['timestamp'] = datetime.now()
+                deserialized[key] = datetime.now()
     return deserialized
 
 def load_candles_from_file():
     """Load candles from JSON file"""
     global candles
     
+    # Always start with empty list
+    candles = []
+    
     if not os.path.exists(CANDLES_FILE):
         logger.info("Candles file not found, starting with empty candles list")
-        candles = []  # Ensure candles list is cleared
         return
     
     try:
         with open(CANDLES_FILE, 'r') as f:
             candles_data = json.load(f)
+            
             # Validate that we have actual candle data, not empty or corrupted
             if not candles_data or not isinstance(candles_data, list):
                 logger.warning("Candles file is empty or invalid, starting with empty list")
-                candles = []
                 return
             
-            loaded_candles = [deserialize_candle(c) for c in candles_data]
-            # Keep only last 50 candles in memory for RSI calculation
-            if len(loaded_candles) > 50:
-                loaded_candles = loaded_candles[-50:]
+            if len(candles_data) == 0:
+                logger.info("Candles file contains no data, starting with empty list")
+                return
             
-            # Replace the global candles list (don't append to existing)
-            candles = loaded_candles
-            logger.info(f"✅ Loaded {len(candles)} candles from {CANDLES_FILE}")
+            # Deserialize and validate each candle
+            loaded_candles = []
+            for idx, candle_dict in enumerate(candles_data):
+                try:
+                    candle = deserialize_candle(candle_dict)
+                    
+                    # Validate candle has required fields
+                    if candle.get('open') is None or candle.get('close') is None:
+                        logger.debug(f"Skipping invalid candle at index {idx} (missing OHLC)")
+                        continue
+                    
+                    if not candle.get('date') and not candle.get('timestamp'):
+                        logger.debug(f"Skipping candle at index {idx} (missing timestamp)")
+                        continue
+                    
+                    loaded_candles.append(candle)
+                except Exception as e:
+                    logger.warning(f"Error deserializing candle at index {idx}: {e}")
+                    continue
+            
+            if len(loaded_candles) == 0:
+                logger.warning("No valid candles found in file, starting with empty list")
+                return
+            
+            # Deduplicate loaded candles
+            unique_candles = deduplicate_candles(loaded_candles)
+            
+            # Keep only last 50 candles in memory for RSI calculation
+            if len(unique_candles) > 50:
+                candles = unique_candles[-50:]
+            else:
+                candles = unique_candles
+            
+            logger.info(f"✅ Loaded {len(candles)} valid candles from {CANDLES_FILE}")
+            
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing candles JSON file: {e}. Starting with empty list.")
-        candles = []  # Clear on JSON error
+        candles = []
     except Exception as e:
         logger.error(f"Error loading candles from file: {e}")
-        candles = []  # Clear on any error
+        candles = []
         import traceback
         traceback.print_exc()
 
-def save_candles_to_file():
-    """Save candles to JSON file (keep last 50 for RSI calculation) - only during market hours"""
+def deduplicate_candles(candles_list):
+    """Remove duplicate candles based on timestamp, keeping the most recent version
+    
+    Returns:
+        list: Deduplicated candles sorted chronologically
+    """
+    if not candles_list:
+        return []
+    
+    seen_timestamps = {}
+    invalid_count = 0
+    duplicate_count = 0
+    
+    for idx, candle in enumerate(candles_list):
+        # Validate candle has required fields
+        if not is_valid_candle(candle):
+            invalid_count += 1
+            logger.debug(f"💾 Skipping invalid candle at index {idx}")
+            continue
+        
+        candle_timestamp = candle.get('date') or candle.get('timestamp')
+        if not candle_timestamp:
+            invalid_count += 1
+            logger.debug(f"💾 Skipping candle without timestamp at index {idx}")
+            continue
+        
+        # Convert to string key for comparison
+        if isinstance(candle_timestamp, datetime):
+            timestamp_key = candle_timestamp.isoformat()
+        else:
+            timestamp_key = str(candle_timestamp)
+        
+        # Track duplicates
+        if timestamp_key in seen_timestamps:
+            duplicate_count += 1
+            logger.debug(f"💾 Found duplicate candle with timestamp: {timestamp_key}")
+        
+        # Keep the latest version of each timestamp (later index overwrites)
+        seen_timestamps[timestamp_key] = candle
+    
+    # Return deduplicated candles in chronological order
+    unique_candles = list(seen_timestamps.values())
+    
+    # Sort by timestamp to ensure chronological order
+    try:
+        unique_candles.sort(key=lambda c: c.get('date') or c.get('timestamp'))
+    except Exception as e:
+        logger.warning(f"💾 Error sorting candles: {e}")
+    
+    if invalid_count > 0 or duplicate_count > 0:
+        logger.info(f"💾 Deduplication: {len(candles_list)} input -> {len(unique_candles)} unique (removed {invalid_count} invalid, {duplicate_count} duplicates)")
+    
+    return unique_candles
+
+def save_candles_to_file(force=False):
+    """Save candles to JSON file (keep last 50 for RSI calculation)
+    
+    Args:
+        force: If True, save even outside market hours (used on shutdown)
+    """
     global candles
     
-    # Only save during market hours or on shutdown
-    current_time = datetime.now()
-    if not is_market_hours(current_time):
-        logger.debug(f"💾 Skipping candle save - outside market hours")
-        return
+    # Only save during market hours unless forced
+    if not force:
+        current_time = datetime.now()
+        if not is_market_hours(current_time):
+            logger.debug(f"💾 Skipping candle save - outside market hours")
+            return
     
     try:
         # Validate candles list
@@ -262,23 +354,12 @@ def save_candles_to_file():
             logger.debug(f"💾 No candles to save")
             return
         
-        # Remove duplicates based on timestamp to prevent saving same candle multiple times
-        seen_timestamps = set()
-        unique_candles = []
-        for candle in candles:
-            candle_timestamp = candle.get('date') or candle.get('timestamp')
-            if candle_timestamp:
-                # Convert to string for comparison
-                if isinstance(candle_timestamp, datetime):
-                    timestamp_key = candle_timestamp.isoformat()
-                else:
-                    timestamp_key = str(candle_timestamp)
-                
-                if timestamp_key not in seen_timestamps:
-                    seen_timestamps.add(timestamp_key)
-                    unique_candles.append(candle)
-                else:
-                    logger.debug(f"💾 Skipping duplicate candle with timestamp: {timestamp_key}")
+        # Deduplicate and validate candles
+        unique_candles = deduplicate_candles(candles)
+        
+        if len(unique_candles) == 0:
+            logger.warning(f"💾 No valid candles after deduplication")
+            return
         
         # Keep only last 50 unique candles to save
         candles_to_save = unique_candles[-50:] if len(unique_candles) > 50 else unique_candles
@@ -286,10 +367,23 @@ def save_candles_to_file():
         # Serialize candles (convert datetime to string)
         serialized_candles = [serialize_candle(c) for c in candles_to_save]
         
-        with open(CANDLES_FILE, 'w') as f:
+        # Atomic write: write to temp file first, then rename
+        temp_file = CANDLES_FILE + ".tmp"
+        with open(temp_file, 'w') as f:
             json.dump(serialized_candles, f, indent=2)
         
-        logger.info(f"💾 Saved {len(candles_to_save)} unique candles to {CANDLES_FILE} (removed {len(candles) - len(unique_candles)} duplicates)")
+        # Rename temp file to actual file (atomic on most systems)
+        os.replace(temp_file, CANDLES_FILE)
+        
+        duplicates_removed = len(candles) - len(unique_candles)
+        if duplicates_removed > 0:
+            logger.info(f"💾 Saved {len(candles_to_save)} unique candles (removed {duplicates_removed} duplicates)")
+        else:
+            logger.info(f"💾 Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
+            
+        # Update global candles list to match what was saved (remove duplicates from memory)
+        candles = candles_to_save.copy()
+        
     except Exception as e:
         logger.error(f"Error saving candles to file: {e}")
         import traceback
@@ -318,73 +412,26 @@ def calculate_rsi_from_candles(candles_list, period=14):
 
 def is_first_candle_of_day(candle_time):
     """Check if this is the first candle of the trading day (9:15 AM)"""
-    if isinstance(candle_time, datetime):
-        return candle_time.hour == 9 and candle_time.minute == 15
-    return False
+    return isinstance(candle_time, datetime) and candle_time.hour == 9 and candle_time.minute == 15
 
 def is_after_325(candle_time):
-    """Check if time is 3:25 PM or later (15:25)"""
-    if isinstance(candle_time, datetime):
-        return candle_time.hour > 15 or (candle_time.hour == 15 and candle_time.minute >= 25)
-    return False
-
-def is_weekend(date):
-    """Check if a date is a weekend (Saturday or Sunday)"""
-    if not isinstance(date, datetime):
-        return False
-    
-    weekday = date.weekday()
-    return weekday >= 5  # Saturday = 5, Sunday = 6
-
-def is_market_closed_from_tick(tick):
-    """Detect if market is closed based on tick data indicators"""
-    if not tick:
-        return True
-    
-    # Check volume - if volume is 0, market is likely closed
-    volume_traded = tick.get('volume_traded', 0)
-    volume = tick.get('volume', 0)
-    if volume_traded == 0 and volume == 0:
-        return True
-    
-    # Check if OHLC data indicates stale data (market closed)
-    tick_ohlc = tick.get('ohlc', {})
-    if tick_ohlc:
-        tick_open = tick_ohlc.get('open')
-        tick_high = tick_ohlc.get('high')
-        tick_low = tick_ohlc.get('low')
-        tick_close = tick_ohlc.get('close')
-        
-        # If all OHLC values are identical and volume is 0, market is closed
-        if tick_open == tick_high == tick_low == tick_close and (volume_traded == 0 or volume == 0):
-            return True
-    
-    # Check last_price - if it's 0 or None, market might be closed
-    last_price = tick.get('last_price', 0)
-    if last_price == 0:
-        # But only consider closed if volume is also 0
-        if volume_traded == 0 and volume == 0:
-            return True
-    
-    return False
+    """Check if time is 3:25 PM or later"""
+    return isinstance(candle_time, datetime) and (candle_time.hour > 15 or (candle_time.hour == 15 and candle_time.minute >= 25))
 
 def is_market_hours(candle_time):
-    """Check if time is within market hours (9:15 AM to 3:25 PM) and not a weekend"""
+    """Check if time is within market hours (9:15 AM to 3:25 PM) on weekdays"""
     if not isinstance(candle_time, datetime):
         return False
     
-    # Check if it's a weekend
-    if is_weekend(candle_time):
+    # Check if weekend (Saturday=5, Sunday=6)
+    if candle_time.weekday() >= 5:
         return False
     
-    hour = candle_time.hour
-    minute = candle_time.minute
+    hour, minute = candle_time.hour, candle_time.minute
     
-    # Market opens at 9:15 AM
+    # Market: 9:15 AM to 3:25 PM
     if hour < 9 or (hour == 9 and minute < 15):
         return False
-    
-    # Market closes at 3:25 PM
     if hour > 15 or (hour == 15 and minute >= 25):
         return False
     
@@ -702,141 +749,131 @@ def exit_trade_at_325(trade, exit_price, exit_time):
 
 def process_candle_complete(candle):
     """Process a completed 5-minute candle"""
-    global pending_alert, current_candle, open_trade
+    global pending_alert, open_trade
     
-    logger.info(f"[CANDLE PROCESS] Processing completed candle: {format_time(candle['date'])}, OHLC: O={candle.get('open')}, H={candle.get('high')}, L={candle.get('low')}, C={candle.get('close')}")
-    
-    # Check if we're in market hours - skip processing outside market hours or on weekends
-    if not is_market_hours(candle['date']):
-        if is_weekend(candle['date']):
-            logger.info(f"[CANDLE PROCESS] ⏸️  Weekend detected, skipping candle processing")
-        else:
-            logger.info(f"[CANDLE PROCESS] ⏸️  Outside market hours (9:15 AM - 3:25 PM IST), skipping candle processing")
+    # Validate candle
+    if not candle or not is_valid_candle(candle):
         return
     
-    # Rule 1: Skip first candle of day
-    if is_first_candle_of_day(candle['date']):
-        logger.info(f"[CANDLE PROCESS] Skipping first candle of day: {format_time(candle['date'])}")
+    candle_date = candle.get('date')
+    if not candle_date:
         return
     
-    # Time exit rule: At 3:25 PM, close all ongoing trades
-    if is_after_325(candle['date']):
-        logger.info(f"[CANDLE PROCESS] After 3:25 PM, closing trades if any")
-        if open_trade:
-            close_price = candle.get('close', 0)
-            if close_price > 0:
-                exit_trade_at_325(open_trade, close_price, candle['date'])
+    logger.info(f"Candle: {format_time(candle_date)} | O={candle['open']:.2f} H={candle['high']:.2f} L={candle['low']:.2f} C={candle['close']:.2f}")
+    
+    # Skip processing outside market hours, first candle, or after 3:25 PM
+    if not is_market_hours(candle_date):
+        return
+    
+    if is_first_candle_of_day(candle_date):
+        logger.info("Skipping first candle of day")
+        return
+    
+    if is_after_325(candle_date):
+        if open_trade and candle['close'] > 0:
+            exit_trade_at_325(open_trade, candle['close'], candle_date)
         pending_alert = None
         return
     
-    # Add to candles list for RSI calculation (check for duplicates first)
-    candle_timestamp = candle.get('date') or candle.get('timestamp')
-    if candle_timestamp:
-        # Check if this candle already exists (prevent duplicates)
-        timestamp_key = candle_timestamp.isoformat() if isinstance(candle_timestamp, datetime) else str(candle_timestamp)
-        existing_candle = None
-        for idx, existing in enumerate(candles):
-            existing_timestamp = existing.get('date') or existing.get('timestamp')
-            if existing_timestamp:
-                existing_key = existing_timestamp.isoformat() if isinstance(existing_timestamp, datetime) else str(existing_timestamp)
-                if existing_key == timestamp_key:
-                    existing_candle = idx
-                    break
-        
-        if existing_candle is not None:
-            # Update existing candle instead of adding duplicate
-            logger.debug(f"[CANDLE PROCESS] Updating existing candle at index {existing_candle} instead of adding duplicate")
-            candles[existing_candle] = candle
-        else:
-            # Add new candle
-            candles.append(candle)
-            if len(candles) > 50:
-                candles.pop(0)  # Keep only last 50 in memory
-    else:
-        # No timestamp, just append (shouldn't happen, but handle it)
-        candles.append(candle)
-        if len(candles) > 50:
-            candles.pop(0)  # Keep only last 50 in memory
+    # Add candle to list (check for duplicates)
+    candle_timestamp = candle_date.isoformat() if isinstance(candle_date, datetime) else str(candle_date)
     
-    logger.info(f"[CANDLE PROCESS] Total candles in memory: {len(candles)}")
+    for idx, existing in enumerate(candles):
+        existing_ts = existing.get('date')
+        if existing_ts:
+            existing_key = existing_ts.isoformat() if isinstance(existing_ts, datetime) else str(existing_ts)
+            if existing_key == candle_timestamp:
+                candles[idx] = candle
+                logger.debug(f"Updated existing candle at index {idx}")
+                return  # Early return after update
     
-    # Calculate RSI (RSI period is 14, so we need at least 15 candles)
-    # We keep 50 candles to have enough historical data for accurate RSI calculation
-    logger.info(f"[CANDLE PROCESS] Calculating RSI from {len(candles)} candles (RSI period=14, need at least 15 candles)...")
+    # Add new candle
+    candles.append(candle)
+    if len(candles) > 50:
+        candles.pop(0)
+    
+    logger.info(f"Candles in memory: {len(candles)}")
+    
+    # Calculate RSI and save candles
     rsi = calculate_rsi_from_candles(candles, period=14)
-    
-    # Save candles to file after each candle completion (only during market hours)
     save_candles_to_file()
     
-    # Rule 2: Mark alert candle when RSI > 60 or RSI < 40
-    if rsi is not None:
-        logger.info(f"[CANDLE PROCESS] RSI calculated: {rsi:.2f}, checking for alerts...")
+    # Check for alert (RSI > 60 or RSI < 40, range < 40 points)
+    if rsi:
         alert = check_alert_candle(candle, rsi)
-        if alert:
-            # Rule 3: High - Low of alert candle should be less than 40 points
-            candle_range = alert['high'] - alert['low']
-            logger.info(f"[ALERT CHECK] Range check: High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f}")
-            if candle_range < 40:
-                pending_alert = alert
-                logger.info(f"[ALERT] ✅ ALERT CANDLE VALIDATED at {format_time(datetime.now())}: Type={alert['alert_type']}, RSI={alert['rsi']:.2f}, High={alert['high']}, Low={alert['low']}, Range={candle_range:.2f} (< 40)")
-            else:
-                logger.info(f"[ALERT] ❌ Alert candle REJECTED: Range={candle_range:.2f} >= 40 (too large)")
-        else:
-            logger.debug(f"[CANDLE PROCESS] No alert conditions met (RSI={rsi:.2f})")
-    else:
-        logger.debug(f"[CANDLE PROCESS] RSI is None, cannot check for alerts")
+        if alert and (alert['high'] - alert['low']) < 40:
+            pending_alert = alert
+            logger.info(f"⚠️  ALERT: {alert['alert_type']} | RSI={rsi:.2f} | Range={alert['high'] - alert['low']:.2f}")
     
-    # Rule 4 & 5: Check for trade entry from pending alert (next candle after alert)
-    if pending_alert:
-        if open_trade is None:
-            logger.info(f"[TRADE ENTRY] Checking trade entry for pending alert: Type={pending_alert['alert_type']}, Alert High={pending_alert['high']}, Alert Low={pending_alert['low']}")
-            check_trade_entry(candle, pending_alert)
-            if open_trade:
-                pending_alert = None  # Alert used
-                logger.info(f"[TRADE ENTRY] ✅ Trade entered, pending alert cleared")
-        else:
-            logger.debug(f"⚠️  Pending alert exists but trade already open, skipping entry check")
+    # Check trade entry from pending alert
+    if pending_alert and not open_trade:
+        check_trade_entry(candle, pending_alert)
+        if open_trade:
+            pending_alert = None
     
-    # Check for trade exit on completed candle
+    # Check trade exit
     if open_trade:
-        logger.info(f"[TRADE EXIT] Checking trade exit on completed candle")
         check_trade_exit(candle)
+
+def check_tick_exit(price, tick_time):
+    """Check and execute trade exit based on current tick price"""
+    global open_trade
     
-    # Store current candle for next tick processing
-    current_candle = candle
+    if not open_trade or not price or price <= 0:
+        return
+    
+    trade_type = open_trade['type']
+    sl_hit = (trade_type == 'BUY' and price <= open_trade['stop_loss']) or \
+             (trade_type == 'SELL' and price >= open_trade['stop_loss'])
+    target_hit = (trade_type == 'BUY' and price >= open_trade['target']) or \
+                 (trade_type == 'SELL' and price <= open_trade['target'])
+    
+    if sl_hit:
+        open_trade['exit_price'] = open_trade['stop_loss']
+        open_trade['status'] = 'STOP_LOSS'
+    elif target_hit:
+        open_trade['exit_price'] = open_trade['target']
+        open_trade['status'] = 'TARGET'
+    else:
+        return
+    
+    # Calculate P&L
+    open_trade['exit_date'] = tick_time
+    if trade_type == 'BUY':
+        open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
+    else:
+        open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
+    
+    logger.info(f"🔴 {trade_type} EXIT - {open_trade['status']}: Entry={open_trade['entry_price']:.2f}, Exit={open_trade['exit_price']:.2f}, P&L={open_trade['pnl']:.2f}")
+    
+    try:
+        send_trade_notification('EXIT', open_trade.copy())
+    except Exception as e:
+        logger.error(f"Error sending exit notification: {e}")
+    
+    open_trade = None
 
 def on_ticks(ws, ticks):
     """Handle incoming ticks"""
     global current_candle, current_candle_start, open_trade
     
     for tick in ticks:
-        tick_token = tick.get('instrument_token')
-        if tick_token != instrument_token:
+        if tick.get('instrument_token') != instrument_token:
             continue
         
-        # Check if market is closed based on tick data (before processing)
-        if is_market_closed_from_tick(tick):
-            logger.debug(f"⚠️  Market closed (detected from tick data), skipping tick")
-            continue
-        
-        # Get tick time (uses system timezone)
-        tick_time = tick.get('exchange_timestamp') or tick.get('last_trade_time')
-        if not tick_time:
-            tick_time = datetime.now()
-        
-        # Convert to datetime if string
+        # Get tick time
+        tick_time = tick.get('exchange_timestamp') or tick.get('last_trade_time') or datetime.now()
         if isinstance(tick_time, str):
             try:
                 tick_time = datetime.strptime(tick_time.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
             except:
                 tick_time = datetime.now()
         
-        # Double-check market hours based on timestamp
+        # Skip if outside market hours
         if not is_market_hours(tick_time):
-            logger.debug(f"⚠️  Outside market hours (timestamp: {format_time(tick_time)}), skipping tick")
             continue
         
-        # Round down to 5-minute interval
+        # Round to 5-minute interval
         candle_start_time = tick_time.replace(second=0, microsecond=0)
         candle_start_time = candle_start_time.replace(minute=(candle_start_time.minute // interval_minutes) * interval_minutes)
         
@@ -844,81 +881,27 @@ def on_ticks(ws, ticks):
         if current_candle_start is None:
             current_candle_start = candle_start_time
             current_candle = initialize_candle(current_candle_start)
-            logger.info(f"New 5-minute candle started: {format_time(current_candle_start)}")
+            logger.info(f"🕐 New candle started: {format_time(current_candle_start)}")
         
-        # Check if we need to start a new candle
+        # Check if candle completed
         candle_end = current_candle_start + timedelta(minutes=interval_minutes)
         if tick_time >= candle_end:
-            # Process completed candle
-            if current_candle['open'] is not None:
-                logger.info(f"5-minute candle completed: {format_time(current_candle_start)} - {format_time(candle_end)}, OHLC: O={current_candle.get('open')}, H={current_candle.get('high')}, L={current_candle.get('low')}, C={current_candle.get('close')}")
+            if is_valid_candle(current_candle):
                 process_candle_complete(current_candle)
             
-            # Start new candle
             current_candle_start = candle_end
             current_candle = initialize_candle(current_candle_start)
-            logger.info(f"New 5-minute candle started: {format_time(current_candle_start)}")
+            logger.info(f"🕐 New candle started: {format_time(current_candle_start)}")
         
-        # Update current candle with tick
+        # Update current candle
         current_candle = update_candle_with_tick(current_candle, tick)
         
-        # Time exit rule: At 3:25 PM, close all ongoing trades
-        if open_trade and is_after_325(tick_time):
-            price = tick.get('last_price', 0)
-            if price > 0:
-                exit_trade_at_325(open_trade, price, tick_time)
-        
-        # Check for trade exit on current tick (real-time SL/Target)
-        if open_trade:
-            price = tick.get('last_price', 0)
-            if price > 0:
-                if open_trade['type'] == 'BUY':
-                    if price <= open_trade['stop_loss']:
-                        open_trade['exit_price'] = open_trade['stop_loss']
-                        open_trade['exit_date'] = tick_time
-                        open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
-                        open_trade['status'] = 'STOP_LOSS'
-                        logger.info(f"BUY TRADE EXIT - STOP LOSS (TICK) at {format_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
-                        try:
-                            send_trade_notification('EXIT', open_trade.copy())
-                        except Exception as e:
-                            logger.error(f"Error sending trade exit email: {e}")
-                        open_trade = None
-                    elif price >= open_trade['target']:
-                        open_trade['exit_price'] = open_trade['target']
-                        open_trade['exit_date'] = tick_time
-                        open_trade['pnl'] = open_trade['exit_price'] - open_trade['entry_price']
-                        open_trade['status'] = 'TARGET'
-                        logger.info(f"BUY TRADE EXIT - TARGET (TICK) at {format_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
-                        try:
-                            send_trade_notification('EXIT', open_trade.copy())
-                        except Exception as e:
-                            logger.error(f"Error sending trade exit email: {e}")
-                        open_trade = None
-                
-                elif open_trade['type'] == 'SELL':
-                    if price >= open_trade['stop_loss']:
-                        open_trade['exit_price'] = open_trade['stop_loss']
-                        open_trade['exit_date'] = tick_time
-                        open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
-                        open_trade['status'] = 'STOP_LOSS'
-                        logger.info(f"SELL TRADE EXIT - STOP LOSS (TICK) at {format_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
-                        try:
-                            send_trade_notification('EXIT', open_trade.copy())
-                        except Exception as e:
-                            logger.error(f"Error sending trade exit email: {e}")
-                        open_trade = None
-                    elif price <= open_trade['target']:
-                        open_trade['exit_price'] = open_trade['target']
-                        open_trade['exit_date'] = tick_time
-                        open_trade['pnl'] = open_trade['entry_price'] - open_trade['exit_price']
-                        open_trade['status'] = 'TARGET'
-                        logger.info(f"SELL TRADE EXIT - TARGET (TICK) at {format_time(tick_time)}: Entry={open_trade['entry_price']}, Exit={open_trade['exit_price']}, P&L={open_trade['pnl']:.2f}")
-                        try:
-                            send_trade_notification('EXIT', open_trade.copy())
-                        except Exception as e:
-                            logger.error(f"Error sending trade exit email: {e}")
-                        open_trade = None
+        # Check for trade exits
+        price = tick.get('last_price', 0)
+        if open_trade and is_after_325(tick_time) and price > 0:
+            exit_trade_at_325(open_trade, price, tick_time)
+        elif open_trade:
+            check_tick_exit(price, tick_time)
 
 def on_connect(ws, response):
     """Handle websocket connection"""
@@ -1132,14 +1115,7 @@ def cleanup_on_exit():
     should_reconnect = False  # Stop reconnection attempts
     
     # Force save on shutdown (bypass market hours check)
-    try:
-        candles_to_save = candles[-50:] if len(candles) > 50 else candles
-        serialized_candles = [serialize_candle(c) for c in candles_to_save]
-        with open(CANDLES_FILE, 'w') as f:
-            json.dump(serialized_candles, f, indent=2)
-        logger.info(f"[SHUTDOWN] ✅ Saved {len(candles_to_save)} candles to {CANDLES_FILE}")
-    except Exception as e:
-        logger.error(f"[SHUTDOWN] Error saving candles: {e}")
+    save_candles_to_file(force=True)
     
     # Close websocket connection
     if kws:
