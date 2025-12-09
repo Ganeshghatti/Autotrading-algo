@@ -163,4 +163,3 @@ def send_trade_notification(trade_type, trade_data):
         """
     
     return send_email(subject, body)
-
