@@ -79,6 +79,7 @@ class KiteDataFetcher:
         # Configuration
         self.retry_interval = 300  # 5 minutes in seconds
         self.fetch_interval = 300  # 5 minutes in seconds
+        self.candle_processing_delay = 30  # Wait 30 seconds after interval for candle to complete
         self.candles_data_file = "candles_data.json"
         self.trades_file = "paper_trades.json"
         
@@ -99,6 +100,7 @@ class KiteDataFetcher:
         logger.info(f"Trade Quantity: {self.quantity}")
         logger.info(f"Retry Interval: {self.retry_interval} seconds")
         logger.info(f"Fetch Interval: {self.fetch_interval} seconds (aligned to 5-min intervals)")
+        logger.info(f"Candle Processing Delay: {self.candle_processing_delay} seconds (wait for candle to complete)")
         logger.info(f"Data File: {self.candles_data_file}")
         logger.info(f"Email Notifications: {'Enabled' if EMAIL_ENABLED else 'Disabled'}")
         logger.info("="*80)
@@ -198,8 +200,11 @@ class KiteDataFetcher:
     def get_date_range_for_candles(self):
         """
         Get date range for fetching data.
-        Fetch enough data to calculate RSI (need at least 14+ candles for RSI-14)
-        Always fetch from last 10 days to handle holidays and weekends.
+        Simple & robust approach:
+        - Fetch from last 10 days up to NOW
+        - Handles weekends, holidays, market hours automatically
+        - Filter latest 15 candles from whatever is available
+        - Works 24/7 without market hours checking
         """
         to_date = datetime.now()
         from_date = to_date - timedelta(days=10)
@@ -207,8 +212,9 @@ class KiteDataFetcher:
     
     def calculate_next_5min_interval(self):
         """
-        Calculate seconds to wait until next 5-minute interval
-        (e.g., if current time is 9:17, wait until 9:20)
+        Calculate seconds to wait until next 5-minute interval + processing delay
+        (e.g., if current time is 9:17, wait until 9:20:30)
+        The extra delay ensures the candle has fully formed and API has processed it
         """
         now = datetime.now()
         
@@ -222,10 +228,13 @@ class KiteDataFetcher:
         else:
             next_time = now.replace(minute=next_interval_minute, second=0, microsecond=0)
         
-        wait_seconds = (next_time - now).total_seconds()
+        # Add processing delay to ensure candle is complete
+        next_time_with_delay = next_time + timedelta(seconds=self.candle_processing_delay)
+        wait_seconds = (next_time_with_delay - now).total_seconds()
         
         logger.info(f"⏰ Current time: {now.strftime('%H:%M:%S')}")
-        logger.info(f"⏰ Next 5-min interval: {next_time.strftime('%H:%M:%S')}")
+        logger.info(f"⏰ Next candle completes at: {next_time.strftime('%H:%M:%S')}")
+        logger.info(f"⏰ Will fetch at: {next_time_with_delay.strftime('%H:%M:%S')} (+{self.candle_processing_delay}s delay)")
         logger.info(f"⏰ Waiting {int(wait_seconds)} seconds...")
         
         return wait_seconds
@@ -462,10 +471,10 @@ class KiteDataFetcher:
                 logger.error(f"✗ Invalid instrument token format: {self.instrument_token}")
                 return False
             
-            # Get date range - always fetch from last 10 days
+            # Get date range - always fetch from last 10 days up to now
             from_date, to_date = self.get_date_range_for_candles()
             
-            logger.info(f"Fetching data from last 10 days...")
+            logger.info(f"Fetching data from last 10 days (up to now)...")
             logger.info(f"From: {from_date.strftime('%Y-%m-%d %H:%M:%S')}")
             logger.info(f"To: {to_date.strftime('%Y-%m-%d %H:%M:%S')}")
             logger.info(f"Interval: 5minute")
@@ -500,7 +509,7 @@ class KiteDataFetcher:
             latest_candles = historical_data[-15:] if len(historical_data) >= 15 else historical_data
             latest_rsi_values = rsi_values[-15:] if rsi_values and len(rsi_values) >= 15 else rsi_values if rsi_values else [None] * len(latest_candles)
             
-            logger.info(f"📊 Selected latest {len(latest_candles)} candles")
+            logger.info(f"📊 Filtered latest {len(latest_candles)} candles")
             
             if latest_candles:
                 oldest_candle_date = latest_candles[0].get('date')
