@@ -17,11 +17,12 @@ import time
 import json
 import logging
 from datetime import datetime, timedelta
-from kiteconnect import KiteConnect
+from kiteconnect import KiteConnect, KiteTicker
 from dotenv import load_dotenv
 import pandas as pd
 import talib
 import numpy as np
+import threading
 
 def read_from_file(filename):
     """Read content from a file"""
@@ -73,15 +74,17 @@ class KiteDataFetcher:
         logger.info(f"API_KEY loaded: {self.api_key[:8]}...")
         
         self.kite = None
+        self.kws = None  # KiteTicker WebSocket
         self.access_token = None
         self.is_connected = False
+        self.ws_connected = False
         
         # Configuration
         self.retry_interval = 300  # 5 minutes in seconds
         self.fetch_interval = 300  # 5 minutes in seconds
         self.candle_processing_delay = 30  # Wait 30 seconds after interval for candle to complete
         self.candles_data_file = "candles_data.json"
-        self.trades_file = "paper_trades.json"
+        self.trades_file = "trades.json"  # All trades (paper and real) saved here
         
         # Trading configuration
         self.trading_enabled = os.getenv("TRADING_ENABLED", "paper").lower()  # "real", "paper", or "disabled"
@@ -92,17 +95,20 @@ class KiteDataFetcher:
         self.instrument_name = None
         self.tradingsymbol = None
         
-        # RSI tracking
+        # Trading state
         self.previous_rsi = None
         self.open_trade = None  # Track current open trade
+        self.alert_candle = None  # Store alert candle waiting for entry on next candle
+        self.last_tick_price = None  # Last price from WebSocket
+        self.first_candle_time = None  # Track first candle of the day (9:15 AM)
         
-        logger.info(f"Trading Mode: {self.trading_enabled.upper()}")
-        logger.info(f"Trade Quantity: {self.quantity}")
-        logger.info(f"Retry Interval: {self.retry_interval} seconds")
-        logger.info(f"Fetch Interval: {self.fetch_interval} seconds (aligned to 5-min intervals)")
-        logger.info(f"Candle Processing Delay: {self.candle_processing_delay} seconds (wait for candle to complete)")
-        logger.info(f"Data File: {self.candles_data_file}")
-        logger.info(f"Email Notifications: {'Enabled' if EMAIL_ENABLED else 'Disabled'}")
+        logger.info(f"📊 Trading Mode: {self.trading_enabled.upper()}")
+        logger.info(f"📦 Trade Quantity (lots): {self.quantity}")
+        logger.info(f"🔄 Retry Interval: {self.retry_interval} seconds")
+        logger.info(f"⏱️  Fetch Interval: {self.fetch_interval} seconds (5-min aligned + {self.candle_processing_delay}s delay)")
+        logger.info(f"📁 Candles Data File: {self.candles_data_file}")
+        logger.info(f"📁 Trades Log File: {self.trades_file}")
+        logger.info(f"📧 Email Notifications: {'Enabled' if EMAIL_ENABLED else 'Disabled'}")
         logger.info("="*80)
     
     def get_current_month_nifty_futures(self):
@@ -182,6 +188,11 @@ class KiteDataFetcher:
                 logger.error("✗ Failed to fetch NIFTY futures instrument")
                 return False
             
+            # Setup WebSocket for real-time monitoring
+            if not self.setup_websocket():
+                logger.warning("⚠ WebSocket setup failed, continuing without real-time monitoring")
+                # Don't fail connection, just continue without WebSocket
+            
             # Connection established
             self.is_connected = True
             logger.info("✓ Kite API connection established successfully")
@@ -196,6 +207,218 @@ class KiteDataFetcher:
             logger.error(f"Error type: {type(e).__name__}")
             self.is_connected = False
             return False
+    
+    def setup_websocket(self):
+        """Setup WebSocket connection for real-time tick data"""
+        try:
+            logger.info("🔌 Setting up WebSocket connection...")
+            
+            # Initialize KiteTicker
+            self.kws = KiteTicker(self.api_key, self.access_token)
+            
+            # Define callbacks
+            def on_ticks(ws, ticks):
+                """Callback for tick data"""
+                for tick in ticks:
+                    if tick['instrument_token'] == int(self.instrument_token):
+                        self.last_tick_price = tick.get('last_price', 0)
+                        
+                        # Check if we have an open trade to monitor
+                        if self.open_trade:
+                            self.check_exit_conditions(self.last_tick_price)
+            
+            def on_connect(ws, response):
+                """Callback when WebSocket connects"""
+                logger.info("✓ WebSocket connected successfully")
+                self.ws_connected = True
+                
+                # Subscribe to instrument
+                if self.instrument_token:
+                    ws.subscribe([int(self.instrument_token)])
+                    ws.set_mode(ws.MODE_LTP, [int(self.instrument_token)])
+                    logger.info(f"📡 Subscribed to {self.tradingsymbol} ({self.instrument_token})")
+            
+            def on_close(ws, code, reason):
+                """Callback when WebSocket closes"""
+                logger.warning(f"⚠ WebSocket closed: {code} - {reason}")
+                self.ws_connected = False
+            
+            def on_error(ws, code, reason):
+                """Callback on error"""
+                logger.error(f"✗ WebSocket error: {code} - {reason}")
+            
+            # Assign callbacks
+            self.kws.on_ticks = on_ticks
+            self.kws.on_connect = on_connect
+            self.kws.on_close = on_close
+            self.kws.on_error = on_error
+            
+            # Start WebSocket in a separate thread
+            ws_thread = threading.Thread(target=self.kws.connect, daemon=True)
+            ws_thread.start()
+            
+            # Wait a moment for connection
+            time.sleep(2)
+            
+            logger.info("✓ WebSocket setup complete")
+            return True
+            
+        except Exception as e:
+            logger.error(f"✗ Error setting up WebSocket: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+    
+    def check_exit_conditions(self, current_price):
+        """Check if SL or Target is hit for open trade"""
+        if not self.open_trade or not current_price:
+            return
+        
+        trade = self.open_trade
+        trade_type = trade.get('transaction_type')
+        stop_loss = trade.get('stop_loss')
+        target = trade.get('target')
+        
+        # Check for BUY trade
+        if trade_type == 'BUY':
+            if current_price <= stop_loss:
+                logger.info(f"🛑 STOP LOSS HIT! Price: ₹{current_price:.2f} <= SL: ₹{stop_loss:.2f}")
+                self.exit_trade('STOP_LOSS', current_price)
+            elif current_price >= target:
+                logger.info(f"🎯 TARGET HIT! Price: ₹{current_price:.2f} >= Target: ₹{target:.2f}")
+                self.exit_trade('TARGET', current_price)
+        
+        # Check for SELL trade
+        elif trade_type == 'SELL':
+            if current_price >= stop_loss:
+                logger.info(f"🛑 STOP LOSS HIT! Price: ₹{current_price:.2f} >= SL: ₹{stop_loss:.2f}")
+                self.exit_trade('STOP_LOSS', current_price)
+            elif current_price <= target:
+                logger.info(f"🎯 TARGET HIT! Price: ₹{current_price:.2f} <= Target: ₹{target:.2f}")
+                self.exit_trade('TARGET', current_price)
+    
+    def check_time_based_exit(self):
+        """Check if current time is 3:25 PM or later - force exit all trades"""
+        now = datetime.now()
+        exit_time = now.replace(hour=15, minute=25, second=0, microsecond=0)
+        
+        if now >= exit_time and self.open_trade:
+            logger.info("⏰ 3:25 PM - Time-based exit triggered")
+            # Use last tick price or try to get current LTP
+            exit_price = self.last_tick_price
+            if not exit_price and self.kite:
+                try:
+                    ltp_data = self.kite.ltp([self.instrument_token])
+                    exit_price = ltp_data.get(self.instrument_token, {}).get('last_price', 0)
+                except:
+                    exit_price = self.open_trade.get('entry_price', 0)
+            
+            self.exit_trade('TIME_EXIT_325PM', exit_price)
+    
+    def exit_trade(self, exit_reason, exit_price):
+        """Exit the current open trade"""
+        if not self.open_trade:
+            return
+        
+        logger.info("="*80)
+        logger.info(f"📤 EXITING TRADE - {exit_reason}")
+        logger.info("-"*80)
+        
+        trade = self.open_trade
+        trade['exit_price'] = exit_price
+        trade['exit_time'] = datetime.now().isoformat()
+        trade['exit_reason'] = exit_reason
+        trade['status'] = 'CLOSED'
+        
+        # Calculate P&L
+        if trade['transaction_type'] == 'BUY':
+            pnl = (exit_price - trade['entry_price']) * trade['quantity']
+        else:  # SELL
+            pnl = (trade['entry_price'] - exit_price) * trade['quantity']
+        
+        trade['pnl'] = round(pnl, 2)
+        
+        logger.info(f"📊 Trade ID: {trade['trade_id']}")
+        logger.info(f"💰 Entry: ₹{trade['entry_price']:.2f}")
+        logger.info(f"💵 Exit: ₹{exit_price:.2f}")
+        logger.info(f"{'💚' if pnl > 0 else '❤️'} P&L: ₹{pnl:.2f}")
+        logger.info(f"📝 Reason: {exit_reason}")
+        
+        # Place exit order for real trades
+        if trade.get('trade_mode') == 'REAL':
+            try:
+                # Place opposite order to exit
+                exit_order_type = 'SELL' if trade['transaction_type'] == 'BUY' else 'BUY'
+                order_id = self.kite.place_order(
+                    variety=self.kite.VARIETY_REGULAR,
+                    exchange=self.kite.EXCHANGE_NFO,
+                    tradingsymbol=self.tradingsymbol,
+                    transaction_type=exit_order_type,
+                    quantity=trade['quantity'],
+                    product=self.kite.PRODUCT_MIS,
+                    order_type=self.kite.ORDER_TYPE_MARKET
+                )
+                trade['exit_order_id'] = order_id
+                logger.info(f"📋 Exit Order ID: {order_id}")
+            except Exception as e:
+                logger.error(f"✗ Error placing exit order: {str(e)}")
+        
+        # Update trade in file
+        self.update_trade_in_file(trade)
+        
+        # Send email notification
+        if EMAIL_ENABLED:
+            send_trade_notification('EXIT', trade)
+        
+        logger.info(f"✅ Trade exited successfully")
+        logger.info("="*80)
+        
+        # Clear open trade
+        self.open_trade = None
+    
+    def update_trade_in_file(self, updated_trade):
+        """Update a specific trade in the trades file"""
+        try:
+            trades = []
+            if os.path.exists(self.trades_file):
+                with open(self.trades_file, 'r') as f:
+                    trades = json.load(f)
+            
+            # Find and update the trade
+            for i, trade in enumerate(trades):
+                if trade.get('trade_id') == updated_trade.get('trade_id'):
+                    trades[i] = updated_trade
+                    break
+            
+            # Save back to file
+            with open(self.trades_file, 'w') as f:
+                json.dump(trades, f, indent=2)
+            
+            logger.info(f"💾 Trade updated in {self.trades_file}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"✗ Error updating trade in file: {str(e)}")
+            return False
+    
+    def is_first_candle_of_day(self, candle_date):
+        """Check if candle is the first candle of the day (9:15 AM)"""
+        if isinstance(candle_date, str):
+            try:
+                # Parse ISO format with timezone
+                if '+' in candle_date:
+                    date_obj = datetime.fromisoformat(candle_date)
+                else:
+                    date_obj = datetime.strptime(candle_date.split('+')[0].strip(), '%Y-%m-%d %H:%M:%S')
+            except:
+                return False
+        elif isinstance(candle_date, datetime):
+            date_obj = candle_date
+        else:
+            return False
+        
+        # First candle is 9:15 AM
+        return date_obj.hour == 9 and date_obj.minute == 15
     
     def get_date_range_for_candles(self):
         """
@@ -267,59 +490,101 @@ class KiteDataFetcher:
         
         return rsi_list, latest_rsi
     
-    def place_paper_trade(self, trade_type, price, alert_candle):
-        """Place a paper trade"""
+    def save_trade_to_file(self, trade):
+        """Save trade to JSON file for tracking and reference"""
         try:
-            trade = {
-                "trade_id": f"PT_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
-                "instrument_token": self.instrument_token,
-                "tradingsymbol": self.tradingsymbol,
-                "quantity": self.quantity,
-                "transaction_type": trade_type,
-                "order_type": "MARKET",
-                "product": "MIS",
-                "price": price,
-                "timestamp": datetime.now().isoformat(),
-                "status": "PAPER_TRADE_OPEN",
-                "alert_rsi": alert_candle.get('rsi'),
-                "alert_high": alert_candle.get('high'),
-                "alert_low": alert_candle.get('low'),
-                "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
-                "target": price + 10 if trade_type == "BUY" else price - 10
-            }
-            
-            # Save to file
             trades = []
             if os.path.exists(self.trades_file):
                 with open(self.trades_file, 'r') as f:
                     try:
                         trades = json.load(f)
+                        logger.info(f"📂 Loaded {len(trades)} existing trades from {self.trades_file}")
                     except:
                         trades = []
+                        logger.warning(f"⚠ Could not read existing trades, starting fresh")
             
             trades.append(trade)
             
             with open(self.trades_file, 'w') as f:
                 json.dump(trades, f, indent=2)
             
-            logger.info(f"✅ PAPER TRADE PLACED: {trade_type} @ ₹{price}")
-            logger.info(f"   Stop Loss: ₹{trade['stop_loss']}, Target: ₹{trade['target']}")
+            logger.info(f"💾 Trade saved to {self.trades_file} (Total trades: {len(trades)})")
+            return True
             
-            # Send email notification
-            if EMAIL_ENABLED:
-                send_trade_notification('ENTRY', trade)
+        except Exception as e:
+            logger.error(f"✗ Error saving trade to file: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+    
+    def place_paper_trade(self, trade_type, price, alert_candle):
+        """Place a paper trade (simulated)"""
+        try:
+            logger.info("="*80)
+            logger.info(f"📝 PLACING PAPER TRADE")
+            logger.info("-"*80)
             
-            return trade
+            trade = {
+                "trade_id": f"PT_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
+                "trade_mode": "PAPER",
+                "instrument_token": self.instrument_token,
+                "tradingsymbol": self.tradingsymbol,
+                "quantity": self.quantity,
+                "transaction_type": trade_type,
+                "order_type": "MARKET",
+                "product": "MIS",
+                "entry_price": price,
+                "timestamp": datetime.now().isoformat(),
+                "status": "OPEN",
+                "alert_rsi": round(alert_candle.get('rsi'), 2) if alert_candle.get('rsi') else None,
+                "alert_open": alert_candle.get('open'),
+                "alert_high": alert_candle.get('high'),
+                "alert_low": alert_candle.get('low'),
+                "alert_close": alert_candle.get('close'),
+                "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
+                "target": price + 10 if trade_type == "BUY" else price - 10
+            }
+            
+            logger.info(f"🎯 Type: {trade_type}")
+            logger.info(f"📊 Symbol: {self.tradingsymbol}")
+            logger.info(f"💰 Entry: ₹{price:.2f}")
+            logger.info(f"🛑 Stop Loss: ₹{trade['stop_loss']:.2f}")
+            logger.info(f"🎯 Target: ₹{trade['target']:.2f}")
+            logger.info(f"📈 RSI: {trade['alert_rsi']}")
+            logger.info(f"📦 Quantity: {self.quantity} lots")
+            
+            # Save to file
+            if self.save_trade_to_file(trade):
+                logger.info(f"✅ PAPER TRADE PLACED SUCCESSFULLY")
+                logger.info(f"📄 Trade ID: {trade['trade_id']}")
+                logger.info(f"📁 Saved to: {self.trades_file}")
+                logger.info("="*80)
+                
+                # Send email notification
+                if EMAIL_ENABLED:
+                    send_trade_notification('ENTRY', trade)
+                
+                return trade
+            else:
+                logger.error(f"✗ Trade placed but failed to save to file")
+                return None
             
         except Exception as e:
             logger.error(f"✗ Error placing paper trade: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
+            logger.info("="*80)
             return None
     
     def place_real_trade(self, trade_type, price, alert_candle):
         """Place a real trade via Kite API"""
         try:
+            logger.info("="*80)
+            logger.info(f"🔴 PLACING REAL TRADE (LIVE)")
+            logger.info("-"*80)
+            
+            # Place order via Kite API
+            logger.info(f"📡 Sending order to Kite API...")
             order_id = self.kite.place_order(
                 variety=self.kite.VARIETY_REGULAR,
                 exchange=self.kite.EXCHANGE_NFO,
@@ -330,54 +595,95 @@ class KiteDataFetcher:
                 order_type=self.kite.ORDER_TYPE_MARKET
             )
             
+            logger.info(f"✅ Order placed successfully!")
+            logger.info(f"📋 Order ID: {order_id}")
+            
             trade = {
                 "order_id": order_id,
                 "trade_id": f"RT_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
+                "trade_mode": "REAL",
                 "instrument_token": self.instrument_token,
                 "tradingsymbol": self.tradingsymbol,
                 "quantity": self.quantity,
                 "transaction_type": trade_type,
                 "order_type": "MARKET",
                 "product": "MIS",
-                "price": price,
+                "entry_price": price,
                 "timestamp": datetime.now().isoformat(),
-                "status": "REAL_TRADE_OPEN",
-                "alert_rsi": alert_candle.get('rsi'),
+                "status": "OPEN",
+                "alert_rsi": round(alert_candle.get('rsi'), 2) if alert_candle.get('rsi') else None,
+                "alert_open": alert_candle.get('open'),
                 "alert_high": alert_candle.get('high'),
                 "alert_low": alert_candle.get('low'),
+                "alert_close": alert_candle.get('close'),
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
                 "target": price + 10 if trade_type == "BUY" else price - 10
             }
             
-            logger.info(f"✅ REAL TRADE PLACED: {trade_type} @ ₹{price}")
-            logger.info(f"   Order ID: {order_id}")
-            logger.info(f"   Stop Loss: ₹{trade['stop_loss']}, Target: ₹{trade['target']}")
+            logger.info(f"🎯 Type: {trade_type}")
+            logger.info(f"📊 Symbol: {self.tradingsymbol}")
+            logger.info(f"💰 Entry: ₹{price:.2f}")
+            logger.info(f"🛑 Stop Loss: ₹{trade['stop_loss']:.2f}")
+            logger.info(f"🎯 Target: ₹{trade['target']:.2f}")
+            logger.info(f"📈 RSI: {trade['alert_rsi']}")
+            logger.info(f"📦 Quantity: {self.quantity} lots")
             
-            # Send email notification
-            if EMAIL_ENABLED:
-                send_trade_notification('ENTRY', trade)
-            
-            return trade
+            # Save to file
+            if self.save_trade_to_file(trade):
+                logger.info(f"✅ REAL TRADE PLACED & LOGGED")
+                logger.info(f"📄 Trade ID: {trade['trade_id']}")
+                logger.info(f"📁 Saved to: {self.trades_file}")
+                logger.info("="*80)
+                
+                # Send email notification
+                if EMAIL_ENABLED:
+                    send_trade_notification('ENTRY', trade)
+                
+                return trade
+            else:
+                logger.warning(f"⚠ Order placed but failed to save to file")
+                return trade  # Still return trade even if file save failed
             
         except Exception as e:
             logger.error(f"✗ Error placing real trade: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
+            logger.info("="*80)
             return None
     
     def check_and_place_order(self, latest_candle, rsi):
         """
-        Check RSI crossover and place order if conditions met
-        - BUY when RSI crosses above 60
-        - SELL when RSI crosses below 40
+        Complete trading logic:
+        1. Skip first candle of day (9:15 AM)
+        2. Mark alert candle when RSI crosses 60 or 40 AND range < 40
+        3. On NEXT candle, check if price crosses alert candle trigger
+        4. Place order if trigger is crossed
         """
         if self.trading_enabled == "disabled":
             return
         
-        if self.open_trade is not None:
-            logger.info("⚠ Trade already open, skipping order check")
+        # Skip first candle of the day
+        if self.is_first_candle_of_day(latest_candle.get('date')):
+            logger.info("⚠ First candle of day (9:15 AM) - Skipping")
+            self.previous_rsi = rsi
             return
         
+        # Check time-based exit (3:25 PM)
+        self.check_time_based_exit()
+        
+        # If trade is open, skip new entries
+        if self.open_trade is not None:
+            logger.info("⚠ Trade already open, monitoring for exit...")
+            logger.info(f"   Current trade: {self.open_trade.get('trade_id')} - {self.open_trade.get('transaction_type')}")
+            return
+        
+        # Check if we have a pending alert candle waiting for entry
+        if self.alert_candle is not None:
+            logger.info("🔍 Checking entry trigger for pending alert candle...")
+            self.check_entry_trigger(latest_candle)
+            return
+        
+        # Check for new RSI crossover to mark alert candle
         if rsi is None or self.previous_rsi is None:
             self.previous_rsi = rsi
             return
@@ -387,7 +693,10 @@ class KiteDataFetcher:
         crossed_40_down = self.previous_rsi >= 40 and rsi < 40
         
         if crossed_60_up:
-            logger.info(f"🔔 RSI crossed above 60! Previous: {self.previous_rsi:.2f}, Current: {rsi:.2f}")
+            logger.info("="*80)
+            logger.info(f"🔔 RSI CROSSED ABOVE 60!")
+            logger.info(f"   Previous RSI: {self.previous_rsi:.2f}")
+            logger.info(f"   Current RSI: {rsi:.2f}")
             
             # Check candle range condition (high - low < 40)
             candle_range = latest_candle['high'] - latest_candle['low']
@@ -395,31 +704,31 @@ class KiteDataFetcher:
             
             if candle_range < 40:
                 logger.info(f"   ✓ Range condition met (< 40)")
+                logger.info(f"   📌 ALERT CANDLE MARKED for BUY")
+                logger.info(f"   🎯 Will enter if next candle crosses HIGH: ₹{latest_candle['high']:.2f}")
                 
-                # Entry price is the high of the alert candle
-                entry_price = latest_candle['high']
-                
-                alert_candle = {
+                # Mark this as alert candle
+                self.alert_candle = {
+                    'type': 'BUY',
                     'rsi': rsi,
+                    'date': latest_candle.get('date'),
+                    'open': latest_candle['open'],
                     'high': latest_candle['high'],
                     'low': latest_candle['low'],
                     'close': latest_candle['close'],
-                    'open': latest_candle['open']
+                    'trigger_price': latest_candle['high'],  # Entry trigger
+                    'stop_loss': latest_candle['low'],
+                    'target': latest_candle['high'] + 10
                 }
-                
-                # Place order
-                if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("BUY", entry_price, alert_candle)
-                else:  # real
-                    trade = self.place_real_trade("BUY", entry_price, alert_candle)
-                
-                if trade:
-                    self.open_trade = trade
+                logger.info("="*80)
             else:
-                logger.info(f"   ✗ Range condition NOT met (>= 40), skipping order")
+                logger.info(f"   ✗ Range condition NOT met (>= 40), ignoring signal")
         
         elif crossed_40_down:
-            logger.info(f"🔔 RSI crossed below 40! Previous: {self.previous_rsi:.2f}, Current: {rsi:.2f}")
+            logger.info("="*80)
+            logger.info(f"🔔 RSI CROSSED BELOW 40!")
+            logger.info(f"   Previous RSI: {self.previous_rsi:.2f}")
+            logger.info(f"   Current RSI: {rsi:.2f}")
             
             # Check candle range condition
             candle_range = latest_candle['high'] - latest_candle['low']
@@ -427,31 +736,71 @@ class KiteDataFetcher:
             
             if candle_range < 40:
                 logger.info(f"   ✓ Range condition met (< 40)")
+                logger.info(f"   📌 ALERT CANDLE MARKED for SELL")
+                logger.info(f"   🎯 Will enter if next candle crosses LOW: ₹{latest_candle['low']:.2f}")
                 
-                # Entry price is the low of the alert candle
-                entry_price = latest_candle['low']
-                
-                alert_candle = {
+                # Mark this as alert candle
+                self.alert_candle = {
+                    'type': 'SELL',
                     'rsi': rsi,
+                    'date': latest_candle.get('date'),
+                    'open': latest_candle['open'],
                     'high': latest_candle['high'],
                     'low': latest_candle['low'],
                     'close': latest_candle['close'],
-                    'open': latest_candle['open']
+                    'trigger_price': latest_candle['low'],  # Entry trigger
+                    'stop_loss': latest_candle['high'],
+                    'target': latest_candle['low'] - 10
                 }
-                
-                # Place order
-                if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("SELL", entry_price, alert_candle)
-                else:  # real
-                    trade = self.place_real_trade("SELL", entry_price, alert_candle)
-                
-                if trade:
-                    self.open_trade = trade
+                logger.info("="*80)
             else:
-                logger.info(f"   ✗ Range condition NOT met (>= 40), skipping order")
+                logger.info(f"   ✗ Range condition NOT met (>= 40), ignoring signal")
         
         # Update previous RSI
         self.previous_rsi = rsi
+    
+    def check_entry_trigger(self, current_candle):
+        """Check if current candle triggers entry based on pending alert candle"""
+        if not self.alert_candle:
+            return
+        
+        alert = self.alert_candle
+        
+        if alert['type'] == 'BUY':
+            # BUY: Check if current candle's HIGH crosses alert candle's HIGH
+            if current_candle['high'] > alert['trigger_price']:
+                logger.info(f"✅ ENTRY TRIGGER HIT!")
+                logger.info(f"   Current High: ₹{current_candle['high']:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
+                
+                # Place BUY order
+                if self.trading_enabled == "paper":
+                    trade = self.place_paper_trade("BUY", alert['trigger_price'], alert)
+                else:  # real
+                    trade = self.place_real_trade("BUY", alert['trigger_price'], alert)
+                
+                if trade:
+                    self.open_trade = trade
+                    self.alert_candle = None  # Clear alert candle
+            else:
+                logger.info(f"   ⏳ Waiting for trigger: Current High ₹{current_candle['high']:.2f} <= Alert High ₹{alert['trigger_price']:.2f}")
+        
+        elif alert['type'] == 'SELL':
+            # SELL: Check if current candle's LOW crosses alert candle's LOW
+            if current_candle['low'] < alert['trigger_price']:
+                logger.info(f"✅ ENTRY TRIGGER HIT!")
+                logger.info(f"   Current Low: ₹{current_candle['low']:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
+                
+                # Place SELL order
+                if self.trading_enabled == "paper":
+                    trade = self.place_paper_trade("SELL", alert['trigger_price'], alert)
+                else:  # real
+                    trade = self.place_real_trade("SELL", alert['trigger_price'], alert)
+                
+                if trade:
+                    self.open_trade = trade
+                    self.alert_candle = None  # Clear alert candle
+            else:
+                logger.info(f"   ⏳ Waiting for trigger: Current Low ₹{current_candle['low']:.2f} >= Alert Low ₹{alert['trigger_price']:.2f}")
     
     def fetch_historical_data(self):
         """Fetch latest 15 candles of 5-minute interval historical data"""
@@ -494,7 +843,7 @@ class KiteDataFetcher:
                 # Don't return False - this is not a connection error
                 return True  # Return True to keep connection alive
             
-            logger.info(f"✓ Received {len(historical_data)} candles from API (from last 10 days)")
+            logger.info(f"✓ Received {len(historical_data)} candles from API")
             
             # Calculate RSI on all data
             logger.info("Calculating RSI (14-period)...")
@@ -557,13 +906,14 @@ class KiteDataFetcher:
             if processed_candles:
                 latest = processed_candles[-1]
                 logger.info("-"*80)
-                logger.info("LATEST CANDLE SUMMARY:")
-                logger.info(f"  Date: {latest.get('date')}")
-                logger.info(f"  Open: {latest.get('open')}")
-                logger.info(f"  High: {latest.get('high')}")
-                logger.info(f"  Low: {latest.get('low')}")
-                logger.info(f"  Close: {latest.get('close')}")
-                logger.info(f"  Volume: {latest.get('volume')}")
+                logger.info("📊 LATEST CANDLE SUMMARY:")
+                logger.info(f"  🕐 Date: {latest.get('date')}")
+                logger.info(f"  💹 Open: {latest.get('open')}")
+                logger.info(f"  ⬆️  High: {latest.get('high')}")
+                logger.info(f"  ⬇️  Low: {latest.get('low')}")
+                logger.info(f"  💵 Close: {latest.get('close')}")
+                logger.info(f"  📦 Volume: {latest.get('volume')}")
+                logger.info(f"  📈 RSI: {latest.get('rsi')}")
                 logger.info("-"*80)
             
             return True
