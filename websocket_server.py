@@ -679,8 +679,10 @@ class KiteDataFetcher:
         
         # Check if we have a pending alert candle waiting for entry
         if self.alert_candle is not None:
-            logger.info("🔍 Checking entry trigger for pending alert candle...")
-            self.check_entry_trigger(latest_candle)
+            # First check if alert should be discarded due to RSI reversal
+            if self.should_discard_alert(rsi):
+                logger.info("🔍 Checking entry trigger for pending alert candle...")
+                self.check_entry_trigger(latest_candle, rsi)
             return
         
         # Check for new RSI crossover to mark alert candle
@@ -759,7 +761,46 @@ class KiteDataFetcher:
         # Update previous RSI
         self.previous_rsi = rsi
     
-    def check_entry_trigger(self, current_candle):
+    def should_discard_alert(self, current_rsi):
+        """
+        Check if pending alert should be discarded due to RSI reversal
+        - BUY alert (RSI > 60): Discard if RSI drops back to <= 60
+        - SELL alert (RSI < 40): Discard if RSI rises back to >= 40
+        """
+        if not self.alert_candle or current_rsi is None:
+            return False
+        
+        alert = self.alert_candle
+        
+        if alert['type'] == 'BUY':
+            # BUY alert: Discard if RSI drops back to 60 or below
+            if current_rsi <= 60:
+                logger.info("="*80)
+                logger.info("❌ ALERT DISCARDED - RSI REVERSAL")
+                logger.info(f"   Alert Type: BUY (RSI > 60)")
+                logger.info(f"   Alert RSI: {alert['rsi']:.2f}")
+                logger.info(f"   Current RSI: {current_rsi:.2f} (dropped back to <= 60)")
+                logger.info(f"   Signal invalidated before entry")
+                logger.info("="*80)
+                self.alert_candle = None
+                return True
+        
+        elif alert['type'] == 'SELL':
+            # SELL alert: Discard if RSI rises back to 40 or above
+            if current_rsi >= 40:
+                logger.info("="*80)
+                logger.info("❌ ALERT DISCARDED - RSI REVERSAL")
+                logger.info(f"   Alert Type: SELL (RSI < 40)")
+                logger.info(f"   Alert RSI: {alert['rsi']:.2f}")
+                logger.info(f"   Current RSI: {current_rsi:.2f} (rose back to >= 40)")
+                logger.info(f"   Signal invalidated before entry")
+                logger.info("="*80)
+                self.alert_candle = None
+                return True
+        
+        return False
+    
+    def check_entry_trigger(self, current_candle, current_rsi):
         """Check if current candle triggers entry based on pending alert candle"""
         if not self.alert_candle:
             return
@@ -771,6 +812,7 @@ class KiteDataFetcher:
             if current_candle['high'] > alert['trigger_price']:
                 logger.info(f"✅ ENTRY TRIGGER HIT!")
                 logger.info(f"   Current High: ₹{current_candle['high']:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Current RSI: {current_rsi:.2f} (still > 60 ✓)")
                 
                 # Place BUY order
                 if self.trading_enabled == "paper":
@@ -783,12 +825,14 @@ class KiteDataFetcher:
                     self.alert_candle = None  # Clear alert candle
             else:
                 logger.info(f"   ⏳ Waiting for trigger: Current High ₹{current_candle['high']:.2f} <= Alert High ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Current RSI: {current_rsi:.2f}")
         
         elif alert['type'] == 'SELL':
             # SELL: Check if current candle's LOW crosses alert candle's LOW
             if current_candle['low'] < alert['trigger_price']:
                 logger.info(f"✅ ENTRY TRIGGER HIT!")
                 logger.info(f"   Current Low: ₹{current_candle['low']:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Current RSI: {current_rsi:.2f} (still < 40 ✓)")
                 
                 # Place SELL order
                 if self.trading_enabled == "paper":
@@ -801,6 +845,7 @@ class KiteDataFetcher:
                     self.alert_candle = None  # Clear alert candle
             else:
                 logger.info(f"   ⏳ Waiting for trigger: Current Low ₹{current_candle['low']:.2f} >= Alert Low ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Current RSI: {current_rsi:.2f}")
     
     def fetch_historical_data(self):
         """Fetch latest 15 candles of 5-minute interval historical data"""
