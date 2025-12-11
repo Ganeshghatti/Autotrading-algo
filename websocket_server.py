@@ -426,7 +426,7 @@ class KiteDataFetcher:
         Simple & robust approach:
         - Fetch from last 10 days up to NOW
         - Handles weekends, holidays, market hours automatically
-        - Filter latest 15 candles from whatever is available
+        - Filter latest 14 candles from whatever is available
         - Works 24/7 without market hours checking
         """
         to_date = datetime.now()
@@ -660,11 +660,12 @@ class KiteDataFetcher:
         4. Place order if trigger is crossed
         """
         if self.trading_enabled == "disabled":
+            logger.info("ℹ️  TRADE SKIPPED - Trading is disabled (TRADING_ENABLED=disabled)")
             return
         
         # Skip first candle of the day
         if self.is_first_candle_of_day(latest_candle.get('date')):
-            logger.info("⚠ First candle of day (9:15 AM) - Skipping")
+            logger.info("⚠ TRADE SKIPPED - First candle of day (9:15 AM) - Rule: Skip first candle")
             self.previous_rsi = rsi
             return
         
@@ -673,8 +674,11 @@ class KiteDataFetcher:
         
         # If trade is open, skip new entries
         if self.open_trade is not None:
-            logger.info("⚠ Trade already open, monitoring for exit...")
+            logger.info("⚠ NEW TRADE SKIPPED - Trade already open")
             logger.info(f"   Current trade: {self.open_trade.get('trade_id')} - {self.open_trade.get('transaction_type')}")
+            logger.info(f"   Entry: ₹{self.open_trade.get('entry_price'):.2f}")
+            logger.info(f"   SL: ₹{self.open_trade.get('stop_loss'):.2f} | Target: ₹{self.open_trade.get('target'):.2f}")
+            logger.info(f"   Reason: Only 1 trade allowed at a time")
             return
         
         # Check if we have a pending alert candle waiting for entry
@@ -687,12 +691,24 @@ class KiteDataFetcher:
         
         # Check for new RSI crossover to mark alert candle
         if rsi is None or self.previous_rsi is None:
+            logger.info("ℹ️  TRADE SKIPPED - RSI not available or first calculation")
             self.previous_rsi = rsi
             return
         
         # Check for RSI crossover
         crossed_60_up = self.previous_rsi <= 60 and rsi > 60
         crossed_40_down = self.previous_rsi >= 40 and rsi < 40
+        
+        # Log why no trade if no crossover
+        if not crossed_60_up and not crossed_40_down:
+            logger.info(f"ℹ️  NO ALERT - No RSI crossover detected")
+            logger.info(f"   Previous RSI: {self.previous_rsi:.2f} | Current RSI: {rsi:.2f}")
+            if rsi > 60:
+                logger.info(f"   RSI > 60 but didn't cross (already above)")
+            elif rsi < 40:
+                logger.info(f"   RSI < 40 but didn't cross (already below)")
+            else:
+                logger.info(f"   RSI between 40-60 (neutral zone)")
         
         if crossed_60_up:
             logger.info("="*80)
@@ -756,7 +772,9 @@ class KiteDataFetcher:
                 }
                 logger.info("="*80)
             else:
-                logger.info(f"   ✗ Range condition NOT met (>= 40), ignoring signal")
+                logger.info(f"   ✗ ALERT NOT MARKED - Range condition NOT met (>= 40)")
+                logger.info(f"   Reason: Candle range {candle_range:.2f} >= 40 (too volatile)")
+                logger.info(f"   Rule: Only trade candles with range < 40 points")
         
         # Update previous RSI
         self.previous_rsi = rsi
@@ -824,8 +842,10 @@ class KiteDataFetcher:
                     self.open_trade = trade
                     self.alert_candle = None  # Clear alert candle
             else:
-                logger.info(f"   ⏳ Waiting for trigger: Current High ₹{current_candle['high']:.2f} <= Alert High ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   ⏳ ENTRY NOT TRIGGERED - Waiting for price breakout")
+                logger.info(f"   Current High: ₹{current_candle['high']:.2f} <= Alert High: ₹{alert['trigger_price']:.2f}")
                 logger.info(f"   Current RSI: {current_rsi:.2f}")
+                logger.info(f"   Reason: Price hasn't crossed trigger yet")
         
         elif alert['type'] == 'SELL':
             # SELL: Check if current candle's LOW crosses alert candle's LOW
@@ -844,8 +864,10 @@ class KiteDataFetcher:
                     self.open_trade = trade
                     self.alert_candle = None  # Clear alert candle
             else:
-                logger.info(f"   ⏳ Waiting for trigger: Current Low ₹{current_candle['low']:.2f} >= Alert Low ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   ⏳ ENTRY NOT TRIGGERED - Waiting for price breakout")
+                logger.info(f"   Current Low: ₹{current_candle['low']:.2f} >= Alert Low: ₹{alert['trigger_price']:.2f}")
                 logger.info(f"   Current RSI: {current_rsi:.2f}")
+                logger.info(f"   Reason: Price hasn't crossed trigger yet")
     
     def fetch_historical_data(self):
         """Fetch latest 15 candles of 5-minute interval historical data"""
@@ -898,10 +920,11 @@ class KiteDataFetcher:
                 logger.info(f"📊 Latest RSI: {latest_rsi:.2f}")
             else:
                 logger.warning("⚠ Could not calculate RSI (insufficient data)")
+                logger.warning("⚠ TRADE SKIPPED - Insufficient data for RSI calculation")
             
-            # Get only the latest 15 candles from whatever is available
-            latest_candles = historical_data[-15:] if len(historical_data) >= 15 else historical_data
-            latest_rsi_values = rsi_values[-15:] if rsi_values and len(rsi_values) >= 15 else rsi_values if rsi_values else [None] * len(latest_candles)
+            # Get only the latest 14 candles from whatever is available
+            latest_candles = historical_data[-14:] if len(historical_data) >= 14 else historical_data
+            latest_rsi_values = rsi_values[-14:] if rsi_values and len(rsi_values) >= 14 else rsi_values if rsi_values else [None] * len(latest_candles)
             
             logger.info(f"📊 Filtered latest {len(latest_candles)} candles")
             
