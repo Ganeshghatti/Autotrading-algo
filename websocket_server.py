@@ -88,7 +88,9 @@ class KiteDataFetcher:
         
         # Trading configuration
         self.trading_enabled = os.getenv("TRADING_ENABLED", "paper").lower()  # "real", "paper", or "disabled"
-        self.quantity = int(os.getenv("TRADING_LOTS", "1"))  # Lot size for NIFTY futures
+        self.trading_lots = int(os.getenv("TRADING_LOTS", "1"))  # Number of lots to trade
+        self.lot_size = 75  # NIFTY futures lot size (will be updated when instrument is fetched)
+        self.quantity = self.trading_lots * self.lot_size  # Total units to trade
         
         # Instrument will be fetched dynamically (current month NIFTY futures)
         self.instrument_token = None
@@ -103,7 +105,7 @@ class KiteDataFetcher:
         self.first_candle_time = None  # Track first candle of the day (9:15 AM)
         
         logger.info(f"📊 Trading Mode: {self.trading_enabled.upper()}")
-        logger.info(f"📦 Trade Quantity (lots): {self.quantity}")
+        logger.info(f"📦 Trade Quantity: {self.trading_lots} lot(s)")
         logger.info(f"🔄 Retry Interval: {self.retry_interval} seconds")
         logger.info(f"⏱️  Fetch Interval: {self.fetch_interval} seconds (5-min aligned + {self.candle_processing_delay}s delay)")
         logger.info(f"📁 Candles Data File: {self.candles_data_file}")
@@ -148,9 +150,15 @@ class KiteDataFetcher:
             self.instrument_name = f"NIFTY FUT {nearest['expiry'].strftime('%d-%b-%Y') if hasattr(nearest['expiry'], 'strftime') else nearest['expiry']}"
             self.tradingsymbol = nearest['tradingsymbol']
             
+            # NIFTY futures have a lot size of 75
+            self.lot_size = 75
+            self.quantity = self.trading_lots * self.lot_size
+            
             logger.info(f"✓ Selected NIFTY Futures: {self.tradingsymbol}")
             logger.info(f"  Instrument Token: {self.instrument_token}")
             logger.info(f"  Expiry: {nearest['expiry']}")
+            logger.info(f"  Lot Size: {self.lot_size} units per lot")
+            logger.info(f"  Trading: {self.trading_lots} lot(s) = {self.quantity} units")
             
             return nearest
             
@@ -529,6 +537,8 @@ class KiteDataFetcher:
                 "trade_mode": "PAPER",
                 "instrument_token": self.instrument_token,
                 "tradingsymbol": self.tradingsymbol,
+                "lots": self.trading_lots,
+                "lot_size": self.lot_size,
                 "quantity": self.quantity,
                 "transaction_type": trade_type,
                 "order_type": "MARKET",
@@ -551,7 +561,7 @@ class KiteDataFetcher:
             logger.info(f"🛑 Stop Loss: ₹{trade['stop_loss']:.2f}")
             logger.info(f"🎯 Target: ₹{trade['target']:.2f}")
             logger.info(f"📈 RSI: {trade['alert_rsi']}")
-            logger.info(f"📦 Quantity: {self.quantity} lots")
+            logger.info(f"📦 Quantity: {self.trading_lots} lot(s) × {self.lot_size} = {self.quantity} units")
             
             # Save to file
             if self.save_trade_to_file(trade):
@@ -604,6 +614,8 @@ class KiteDataFetcher:
                 "trade_mode": "REAL",
                 "instrument_token": self.instrument_token,
                 "tradingsymbol": self.tradingsymbol,
+                "lots": self.trading_lots,
+                "lot_size": self.lot_size,
                 "quantity": self.quantity,
                 "transaction_type": trade_type,
                 "order_type": "MARKET",
@@ -626,7 +638,7 @@ class KiteDataFetcher:
             logger.info(f"🛑 Stop Loss: ₹{trade['stop_loss']:.2f}")
             logger.info(f"🎯 Target: ₹{trade['target']:.2f}")
             logger.info(f"📈 RSI: {trade['alert_rsi']}")
-            logger.info(f"📦 Quantity: {self.quantity} lots")
+            logger.info(f"📦 Quantity: {self.trading_lots} lot(s) × {self.lot_size} = {self.quantity} units")
             
             # Save to file
             if self.save_trade_to_file(trade):
