@@ -683,10 +683,20 @@ class KiteDataFetcher:
         
         # Check if we have a pending alert candle waiting for entry
         if self.alert_candle is not None:
+            logger.info("🔍 Checking pending alert candle...")
+            logger.info(f"   Alert Type: {self.alert_candle.get('type')}")
+            logger.info(f"   Alert High: ₹{self.alert_candle.get('high'):.2f} | Alert Low: ₹{self.alert_candle.get('low'):.2f}")
+            logger.info(f"   Trigger Price: ₹{self.alert_candle.get('trigger_price'):.2f}")
+            logger.info(f"   Current RSI: {rsi:.2f}")
+            
             # First check if alert should be discarded due to RSI reversal
             if self.should_discard_alert(rsi):
-                logger.info("🔍 Checking entry trigger for pending alert candle...")
-                self.check_entry_trigger(latest_candle, rsi)
+                # Alert was discarded, return early
+                return
+            
+            # Alert is still valid, check if entry trigger is hit
+            logger.info("   ✓ Alert still valid, checking entry trigger...")
+            self.check_entry_trigger(latest_candle, rsi)
             return
         
         # Check for new RSI crossover to mark alert candle
