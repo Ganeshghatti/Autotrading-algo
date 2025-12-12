@@ -93,22 +93,42 @@ def send_trade_notification(trade_type, trade_data):
         """
     
     elif trade_type == 'ENTRY':
-        subject = f"✅ Trade Entered - {trade_data.get('type', 'TRADE')}"
+        trade_mode = trade_data.get('trade_mode', 'PAPER')
+        transaction_type = trade_data.get('transaction_type', 'N/A')
+        mode_emoji = '🔴' if trade_mode == 'REAL' else '📝'
+        mode_color = '#e74c3c' if trade_mode == 'REAL' else '#3498db'
+        
+        subject = f"{mode_emoji} Trade Entered - {transaction_type} ({trade_mode})"
+        
+        # Get quantity info
+        lots = trade_data.get('lots', 'N/A')
+        lot_size = trade_data.get('lot_size', 'N/A')
+        quantity = trade_data.get('quantity', 'N/A')
+        
         body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h2 style="color: #27ae60;">Trade Entered</h2>
+            <h2 style="color: {mode_color};">{mode_emoji} Trade Entered ({trade_mode})</h2>
             <p><strong>Time:</strong> {timestamp}</p>
-            <p><strong>Trade Type:</strong> {trade_data.get('type', 'N/A')}</p>
+            <p><strong>Trade ID:</strong> {trade_data.get('trade_id', 'N/A')}</p>
+            <p><strong>Symbol:</strong> {trade_data.get('tradingsymbol', 'N/A')}</p>
+            <p><strong>Transaction Type:</strong> <span style="font-size: 18px; font-weight: bold;">{transaction_type}</span></p>
             <hr>
-            <h3>Entry Details:</h3>
+            <h3>📦 Position Details:</h3>
+            <ul>
+                <li><strong>Lots:</strong> {lots}</li>
+                <li><strong>Lot Size:</strong> {lot_size} units/lot</li>
+                <li><strong>Total Quantity:</strong> <strong>{quantity} units</strong></li>
+            </ul>
+            <hr>
+            <h3>💰 Entry Details:</h3>
             <ul>
                 <li><strong>Entry Price:</strong> ₹{trade_data.get('entry_price', 'N/A')}</li>
                 <li><strong>Stop Loss:</strong> ₹{trade_data.get('stop_loss', 'N/A')}</li>
                 <li><strong>Target:</strong> ₹{trade_data.get('target', 'N/A')}</li>
             </ul>
             <hr>
-            <h3>Alert Candle Info:</h3>
+            <h3>📈 Alert Candle Info:</h3>
             <ul>
                 <li><strong>Alert RSI:</strong> {trade_data.get('alert_rsi', 'N/A')}</li>
                 <li><strong>Alert High:</strong> ₹{trade_data.get('alert_high', 'N/A')}</li>
@@ -119,32 +139,51 @@ def send_trade_notification(trade_type, trade_data):
         """
     
     elif trade_type == 'EXIT':
-        exit_reason = trade_data.get('status', 'EXIT')
+        exit_reason = trade_data.get('exit_reason', trade_data.get('status', 'EXIT'))
         status_emoji = '🎯' if exit_reason == 'TARGET' else '🛑' if exit_reason == 'STOP_LOSS' else '⏰'
-        subject = f"{status_emoji} Trade Exited - {exit_reason}"
+        transaction_type = trade_data.get('transaction_type', 'N/A')
+        trade_mode = trade_data.get('trade_mode', 'PAPER')
+        
+        subject = f"{status_emoji} Trade Exited - {exit_reason} ({trade_mode})"
         
         pnl = trade_data.get('pnl', 0)
         pnl_color = '#27ae60' if pnl > 0 else '#e74c3c' if pnl < 0 else '#7f8c8d'
         pnl_emoji = '💰' if pnl > 0 else '📉' if pnl < 0 else '➖'
+        
+        # Get quantity info
+        lots = trade_data.get('lots', 'N/A')
+        lot_size = trade_data.get('lot_size', 'N/A')
+        quantity = trade_data.get('quantity', 'N/A')
         
         body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: {pnl_color};">Trade Exited</h2>
             <p><strong>Time:</strong> {timestamp}</p>
-            <p><strong>Trade Type:</strong> {trade_data.get('type', 'N/A')}</p>
-            <p><strong>Exit Reason:</strong> {exit_reason}</p>
+            <p><strong>Trade ID:</strong> {trade_data.get('trade_id', 'N/A')}</p>
+            <p><strong>Symbol:</strong> {trade_data.get('tradingsymbol', 'N/A')}</p>
+            <p><strong>Transaction Type:</strong> {transaction_type}</p>
+            <p><strong>Exit Reason:</strong> <span style="font-weight: bold; color: {pnl_color};">{exit_reason}</span></p>
             <hr>
-            <h3>Trade Summary:</h3>
+            <h3>📦 Position Details:</h3>
+            <ul>
+                <li><strong>Lots:</strong> {lots}</li>
+                <li><strong>Lot Size:</strong> {lot_size} units/lot</li>
+                <li><strong>Total Quantity:</strong> <strong>{quantity} units</strong></li>
+            </ul>
+            <hr>
+            <h3>💰 Trade Summary:</h3>
             <ul>
                 <li><strong>Entry Price:</strong> ₹{trade_data.get('entry_price', 'N/A')}</li>
                 <li><strong>Exit Price:</strong> ₹{trade_data.get('exit_price', 'N/A')}</li>
                 <li><strong>Stop Loss:</strong> ₹{trade_data.get('stop_loss', 'N/A')}</li>
                 <li><strong>Target:</strong> ₹{trade_data.get('target', 'N/A')}</li>
-                <li style="font-size: 18px; font-weight: bold; color: {pnl_color};">
-                    <strong>{pnl_emoji} P&L:</strong> ₹{pnl:.2f}
-                </li>
             </ul>
+            <hr>
+            <h3 style="color: {pnl_color};">{pnl_emoji} Profit & Loss:</h3>
+            <p style="font-size: 24px; font-weight: bold; color: {pnl_color};">
+                ₹{pnl:.2f}
+            </p>
         </body>
         </html>
         """

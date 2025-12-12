@@ -347,6 +347,7 @@ class KiteDataFetcher:
         trade['pnl'] = round(pnl, 2)
         
         logger.info(f"📊 Trade ID: {trade['trade_id']}")
+        logger.info(f"📦 Quantity: {trade.get('lots', 'N/A')} lot(s) × {trade.get('lot_size', 'N/A')} = {trade.get('quantity', 'N/A')} units")
         logger.info(f"💰 Entry: ₹{trade['entry_price']:.2f}")
         logger.info(f"💵 Exit: ₹{exit_price:.2f}")
         logger.info(f"{'💚' if pnl > 0 else '❤️'} P&L: ₹{pnl:.2f}")
