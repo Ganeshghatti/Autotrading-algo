@@ -935,9 +935,18 @@ class KiteDataFetcher:
             
             logger.info(f"✓ Received {len(historical_data)} candles from API")
             
-            # Calculate RSI on all data
-            logger.info("Calculating RSI (14-period)...")
-            rsi_values, latest_rsi = self.calculate_rsi(historical_data)
+            # IMPORTANT: Exclude the last (current) candle as it's still forming
+            # Current candle has incomplete data (partial close, volume)
+            # This causes incorrect RSI calculation
+            if len(historical_data) > 1:
+                complete_candles = historical_data[:-1]  # Exclude last candle
+                logger.info(f"ℹ️  Excluding current candle (still forming) - using {len(complete_candles)} complete candles")
+            else:
+                complete_candles = historical_data
+            
+            # Calculate RSI on complete candles only
+            logger.info("Calculating RSI (14-period) on complete candles...")
+            rsi_values, latest_rsi = self.calculate_rsi(complete_candles)
             
             if rsi_values and latest_rsi:
                 logger.info(f"📊 Latest RSI: {latest_rsi:.2f}")
@@ -945,8 +954,9 @@ class KiteDataFetcher:
                 logger.warning("⚠ Could not calculate RSI (insufficient data)")
                 logger.warning("⚠ TRADE SKIPPED - Insufficient data for RSI calculation")
             
-            # Get only the latest 14 candles from whatever is available
-            latest_candles = historical_data[-14:] if len(historical_data) >= 14 else historical_data
+            # Get only the latest 14 COMPLETE candles from whatever is available
+            # Since we already excluded the current candle, all these are complete
+            latest_candles = complete_candles[-14:] if len(complete_candles) >= 14 else complete_candles
             latest_rsi_values = rsi_values[-14:] if rsi_values and len(rsi_values) >= 14 else rsi_values if rsi_values else [None] * len(latest_candles)
             
             logger.info(f"📊 Filtered latest {len(latest_candles)} candles")
