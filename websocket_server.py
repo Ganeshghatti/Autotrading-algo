@@ -230,21 +230,30 @@ class KiteDataFetcher:
                 for tick in ticks:
                     if tick['instrument_token'] == int(self.instrument_token):
                         self.last_tick_price = tick.get('last_price', 0)
+                        last_traded_price = tick.get('last_price', 0)
+                        ohlc = tick.get('ohlc', {})
+                        current_high = ohlc.get('high', last_traded_price)
+                        current_low = ohlc.get('low', last_traded_price)
                         
-                        # Check if we have an open trade to monitor
+                        # Check if we have a pending alert candle waiting for entry
+                        if self.alert_candle and not self.open_trade:
+                            self.check_entry_trigger_realtime(last_traded_price, current_high, current_low)
+                        
+                        # Check if we have an open trade to monitor for SL/Target
                         if self.open_trade:
-                            self.check_exit_conditions(self.last_tick_price)
+                            self.check_exit_conditions(last_traded_price)
             
             def on_connect(ws, response):
                 """Callback when WebSocket connects"""
                 logger.info("✓ WebSocket connected successfully")
                 self.ws_connected = True
                 
-                # Subscribe to instrument
+                # Subscribe to instrument with FULL mode to get OHLC data
                 if self.instrument_token:
                     ws.subscribe([int(self.instrument_token)])
-                    ws.set_mode(ws.MODE_LTP, [int(self.instrument_token)])
+                    ws.set_mode(ws.MODE_FULL, [int(self.instrument_token)])  # FULL mode for OHLC
                     logger.info(f"📡 Subscribed to {self.tradingsymbol} ({self.instrument_token})")
+                    logger.info(f"📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)")
             
             def on_close(ws, code, reason):
                 """Callback when WebSocket closes"""
@@ -707,9 +716,10 @@ class KiteDataFetcher:
                 # Alert was discarded, return early
                 return
             
-            # Alert is still valid, check if entry trigger is hit
-            logger.info("   ✓ Alert still valid, checking entry trigger...")
-            self.check_entry_trigger(latest_candle, rsi)
+            # Alert is still valid, WebSocket is monitoring for entry
+            logger.info("   ✓ Alert still valid")
+            logger.info("   📡 WebSocket monitoring active for real-time entry trigger")
+            self.check_entry_trigger(latest_candle, rsi)  # Just for status logging
             return
         
         # Check for new RSI crossover to mark alert candle
@@ -746,7 +756,8 @@ class KiteDataFetcher:
             if candle_range < 40:
                 logger.info(f"   ✓ Range condition met (< 40)")
                 logger.info(f"   📌 ALERT CANDLE MARKED for BUY")
-                logger.info(f"   🎯 Will enter if next candle crosses HIGH: ₹{latest_candle['high']:.2f}")
+                logger.info(f"   🎯 Entry Trigger: HIGH > ₹{latest_candle['high']:.2f}")
+                logger.info(f"   📡 WebSocket will monitor real-time price for entry")
                 
                 # Mark this as alert candle
                 self.alert_candle = {
@@ -778,7 +789,8 @@ class KiteDataFetcher:
             if candle_range < 40:
                 logger.info(f"   ✓ Range condition met (< 40)")
                 logger.info(f"   📌 ALERT CANDLE MARKED for SELL")
-                logger.info(f"   🎯 Will enter if next candle crosses LOW: ₹{latest_candle['low']:.2f}")
+                logger.info(f"   🎯 Entry Trigger: LOW < ₹{latest_candle['low']:.2f}")
+                logger.info(f"   📡 WebSocket will monitor real-time price for entry")
                 
                 # Mark this as alert candle
                 self.alert_candle = {
@@ -841,56 +853,80 @@ class KiteDataFetcher:
         
         return False
     
-    def check_entry_trigger(self, current_candle, current_rsi):
-        """Check if current candle triggers entry based on pending alert candle"""
+    def check_entry_trigger_realtime(self, ltp, current_high, current_low):
+        """
+        Check entry trigger using REAL-TIME WebSocket data
+        Called from WebSocket on_ticks callback
+        """
         if not self.alert_candle:
             return
         
         alert = self.alert_candle
         
         if alert['type'] == 'BUY':
-            # BUY: Check if current candle's HIGH crosses alert candle's HIGH
-            if current_candle['high'] > alert['trigger_price']:
-                logger.info(f"✅ ENTRY TRIGGER HIT!")
-                logger.info(f"   Current High: ₹{current_candle['high']:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current RSI: {current_rsi:.2f} (still > 60 ✓)")
+            # BUY: Check if real-time HIGH crosses alert candle's HIGH
+            if current_high > alert['trigger_price']:
+                logger.info("="*80)
+                logger.info(f"✅ ENTRY TRIGGER HIT (REAL-TIME)!")
+                logger.info(f"   WebSocket High: ₹{current_high:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Current LTP: ₹{ltp:.2f}")
+                logger.info(f"   Entry Method: Real-time WebSocket")
+                logger.info("="*80)
                 
-                # Place BUY order
+                # Place BUY order at current LTP
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("BUY", alert['trigger_price'], alert)
+                    trade = self.place_paper_trade("BUY", ltp, alert)
                 else:  # real
-                    trade = self.place_real_trade("BUY", alert['trigger_price'], alert)
+                    trade = self.place_real_trade("BUY", ltp, alert)
                 
                 if trade:
                     self.open_trade = trade
                     self.alert_candle = None  # Clear alert candle
-            else:
-                logger.info(f"   ⏳ ENTRY NOT TRIGGERED - Waiting for price breakout")
-                logger.info(f"   Current High: ₹{current_candle['high']:.2f} <= Alert High: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current RSI: {current_rsi:.2f}")
-                logger.info(f"   Reason: Price hasn't crossed trigger yet")
         
         elif alert['type'] == 'SELL':
-            # SELL: Check if current candle's LOW crosses alert candle's LOW
-            if current_candle['low'] < alert['trigger_price']:
-                logger.info(f"✅ ENTRY TRIGGER HIT!")
-                logger.info(f"   Current Low: ₹{current_candle['low']:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current RSI: {current_rsi:.2f} (still < 40 ✓)")
+            # SELL: Check if real-time LOW crosses alert candle's LOW
+            if current_low < alert['trigger_price']:
+                logger.info("="*80)
+                logger.info(f"✅ ENTRY TRIGGER HIT (REAL-TIME)!")
+                logger.info(f"   WebSocket Low: ₹{current_low:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Current LTP: ₹{ltp:.2f}")
+                logger.info(f"   Entry Method: Real-time WebSocket")
+                logger.info("="*80)
                 
-                # Place SELL order
+                # Place SELL order at current LTP
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("SELL", alert['trigger_price'], alert)
+                    trade = self.place_paper_trade("SELL", ltp, alert)
                 else:  # real
-                    trade = self.place_real_trade("SELL", alert['trigger_price'], alert)
+                    trade = self.place_real_trade("SELL", ltp, alert)
                 
                 if trade:
                     self.open_trade = trade
                     self.alert_candle = None  # Clear alert candle
-            else:
-                logger.info(f"   ⏳ ENTRY NOT TRIGGERED - Waiting for price breakout")
-                logger.info(f"   Current Low: ₹{current_candle['low']:.2f} >= Alert Low: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current RSI: {current_rsi:.2f}")
-                logger.info(f"   Reason: Price hasn't crossed trigger yet")
+    
+    def check_entry_trigger(self, current_candle, current_rsi):
+        """
+        [DEPRECATED - Now using real-time WebSocket for entry triggers]
+        This method is kept for backward compatibility but is no longer used
+        for actual trade entry. Entry triggers are now checked via WebSocket
+        in check_entry_trigger_realtime()
+        """
+        if not self.alert_candle:
+            return
+        
+        alert = self.alert_candle
+        
+        # Just log that we're waiting for WebSocket trigger
+        if alert['type'] == 'BUY':
+            logger.info(f"   ⏳ ALERT ACTIVE - Monitoring WebSocket for HIGH > ₹{alert['trigger_price']:.2f}")
+            logger.info(f"   Current Candle High: ₹{current_candle['high']:.2f}")
+            logger.info(f"   Current RSI: {current_rsi:.2f}")
+            logger.info(f"   Waiting for real-time trigger via WebSocket...")
+        
+        elif alert['type'] == 'SELL':
+            logger.info(f"   ⏳ ALERT ACTIVE - Monitoring WebSocket for LOW < ₹{alert['trigger_price']:.2f}")
+            logger.info(f"   Current Candle Low: ₹{current_candle['low']:.2f}")
+            logger.info(f"   Current RSI: {current_rsi:.2f}")
+            logger.info(f"   Waiting for real-time trigger via WebSocket...")
     
     def fetch_historical_data(self):
         """Fetch latest 15 candles of 5-minute interval historical data"""
