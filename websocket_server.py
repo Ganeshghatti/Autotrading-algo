@@ -719,7 +719,7 @@ class KiteDataFetcher:
             # Alert is still valid, WebSocket is monitoring for entry
             logger.info("   ✓ Alert still valid")
             logger.info("   📡 WebSocket monitoring active for real-time entry trigger")
-            self.check_entry_trigger(latest_candle, rsi)  # Just for status logging
+            logger.info(f"   ⏳ Waiting for WebSocket to detect price crossing ₹{self.alert_candle.get('trigger_price'):.2f}")
             return
         
         # Check for new RSI crossover to mark alert candle
@@ -902,31 +902,6 @@ class KiteDataFetcher:
                 if trade:
                     self.open_trade = trade
                     self.alert_candle = None  # Clear alert candle
-    
-    def check_entry_trigger(self, current_candle, current_rsi):
-        """
-        [DEPRECATED - Now using real-time WebSocket for entry triggers]
-        This method is kept for backward compatibility but is no longer used
-        for actual trade entry. Entry triggers are now checked via WebSocket
-        in check_entry_trigger_realtime()
-        """
-        if not self.alert_candle:
-            return
-        
-        alert = self.alert_candle
-        
-        # Just log that we're waiting for WebSocket trigger
-        if alert['type'] == 'BUY':
-            logger.info(f"   ⏳ ALERT ACTIVE - Monitoring WebSocket for HIGH > ₹{alert['trigger_price']:.2f}")
-            logger.info(f"   Current Candle High: ₹{current_candle['high']:.2f}")
-            logger.info(f"   Current RSI: {current_rsi:.2f}")
-            logger.info(f"   Waiting for real-time trigger via WebSocket...")
-        
-        elif alert['type'] == 'SELL':
-            logger.info(f"   ⏳ ALERT ACTIVE - Monitoring WebSocket for LOW < ₹{alert['trigger_price']:.2f}")
-            logger.info(f"   Current Candle Low: ₹{current_candle['low']:.2f}")
-            logger.info(f"   Current RSI: {current_rsi:.2f}")
-            logger.info(f"   Waiting for real-time trigger via WebSocket...")
     
     def fetch_historical_data(self):
         """Fetch latest 15 candles of 5-minute interval historical data"""
