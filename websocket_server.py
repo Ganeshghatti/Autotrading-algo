@@ -82,7 +82,7 @@ class KiteDataFetcher:
         # Configuration
         self.retry_interval = 300  # 5 minutes in seconds
         self.fetch_interval = 300  # 5 minutes in seconds
-        self.candle_processing_delay = 30  # Wait 30 seconds after interval for candle to complete
+        self.candle_processing_delay = 10  # Wait 10 seconds after interval (configurable)
         self.candles_data_file = "candles_data.json"
         self.trades_file = "trades.json"  # All trades (paper and real) saved here
         
