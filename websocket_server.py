@@ -16,6 +16,7 @@ import sys
 import time
 import json
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from kiteconnect import KiteConnect, KiteTicker
 from dotenv import load_dotenv
@@ -42,16 +43,29 @@ except ImportError:
     def send_trade_notification(*args, **kwargs):
         pass
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('websocket_server.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# Configure logging with 7-day rotation
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create formatters
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+# File handler with 7-day rotation (rotates at midnight, keeps 7 days)
+file_handler = TimedRotatingFileHandler(
+    'websocket_server.log',
+    when='midnight',
+    interval=1,
+    backupCount=7  # Keep only 7 days of logs
+)
+file_handler.setFormatter(formatter)
+
+# Console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(formatter)
+
+# Add handlers to logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 class KiteDataFetcher:
     def __init__(self):
@@ -89,10 +103,11 @@ class KiteDataFetcher:
         # Trading configuration
         self.trading_enabled = os.getenv("TRADING_ENABLED", "paper").lower()  # "real", "paper", or "disabled"
         self.trading_lots = int(os.getenv("TRADING_LOTS", "1"))  # Number of lots to trade
-        self.lot_size = 75  # NIFTY futures lot size (will be updated when instrument is fetched)
+        self.instrument_symbol = os.getenv("INSTRUMENT_SYMBOL", "BANKNIFTY").upper()  # Symbol from .env
+        self.lot_size = int(os.getenv("LOT_SIZE", "15"))  # Lot size from .env (default 15 for BANKNIFTY)
         self.quantity = self.trading_lots * self.lot_size  # Total units to trade
         
-        # Instrument will be fetched dynamically (current month NIFTY futures)
+        # Instrument will be fetched dynamically from API based on symbol
         self.instrument_token = None
         self.instrument_name = None
         self.tradingsymbol = None
@@ -113,23 +128,23 @@ class KiteDataFetcher:
         logger.info(f"📧 Email Notifications: {'Enabled' if EMAIL_ENABLED else 'Disabled'}")
         logger.info("="*80)
     
-    def get_current_month_nifty_futures(self):
+    def get_current_month_futures(self):
         """
-        Fetch current month NIFTY futures instrument token
-        Returns the nearest expiry NIFTY futures contract
+        Fetch current month futures instrument token for the configured symbol
+        Returns the nearest expiry futures contract
         """
         try:
-            logger.info("Fetching NIFTY futures instruments...")
+            logger.info(f"Fetching {self.instrument_symbol} futures instruments...")
             instruments = self.kite.instruments("NFO")
             
-            # Filter for NIFTY futures only
-            nifty_futures = []
+            # Filter for specified symbol futures only
+            futures = []
             for inst in instruments:
                 name = inst.get('name', '').strip().upper()
                 instrument_type = inst.get('instrument_type', '')
                 
-                if name == 'NIFTY' and instrument_type == 'FUT':
-                    nifty_futures.append({
+                if name == self.instrument_symbol and instrument_type == 'FUT':
+                    futures.append({
                         "instrument_token": inst.get('instrument_token'),
                         "tradingsymbol": inst.get('tradingsymbol'),
                         "name": inst.get('name'),
@@ -138,32 +153,32 @@ class KiteDataFetcher:
                     })
             
             # Sort by expiry (nearest first)
-            nifty_futures.sort(key=lambda x: x.get('expiry', ''))
+            futures.sort(key=lambda x: x.get('expiry', ''))
             
-            if not nifty_futures:
-                logger.error("✗ No NIFTY futures found")
+            if not futures:
+                logger.error(f"✗ No {self.instrument_symbol} futures found")
                 return None
             
             # Get nearest expiry (current month)
-            nearest = nifty_futures[0]
+            nearest = futures[0]
             self.instrument_token = str(nearest['instrument_token'])
-            self.instrument_name = f"NIFTY FUT {nearest['expiry'].strftime('%d-%b-%Y') if hasattr(nearest['expiry'], 'strftime') else nearest['expiry']}"
+            self.instrument_name = f"{self.instrument_symbol} FUT {nearest['expiry'].strftime('%d-%b-%Y') if hasattr(nearest['expiry'], 'strftime') else nearest['expiry']}"
             self.tradingsymbol = nearest['tradingsymbol']
             
-            # NIFTY futures have a lot size of 75
-            self.lot_size = 75
+            # Lot size is already set from .env in __init__
+            # Recalculate quantity in case it wasn't set properly
             self.quantity = self.trading_lots * self.lot_size
             
-            logger.info(f"✓ Selected NIFTY Futures: {self.tradingsymbol}")
+            logger.info(f"✓ Selected {self.instrument_symbol} Futures: {self.tradingsymbol}")
             logger.info(f"  Instrument Token: {self.instrument_token}")
             logger.info(f"  Expiry: {nearest['expiry']}")
-            logger.info(f"  Lot Size: {self.lot_size} units per lot")
+            logger.info(f"  Lot Size: {self.lot_size} units per lot (from .env)")
             logger.info(f"  Trading: {self.trading_lots} lot(s) = {self.quantity} units")
             
             return nearest
             
         except Exception as e:
-            logger.error(f"✗ Error fetching NIFTY futures: {str(e)}")
+            logger.error(f"✗ Error fetching {self.instrument_symbol} futures: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return None
@@ -191,9 +206,9 @@ class KiteDataFetcher:
             logger.info("Setting access token")
             self.kite.set_access_token(self.access_token)
             
-            # Fetch current month NIFTY futures
-            if not self.get_current_month_nifty_futures():
-                logger.error("✗ Failed to fetch NIFTY futures instrument")
+            # Fetch current month futures for configured instrument
+            if not self.get_current_month_futures():
+                logger.error(f"✗ Failed to fetch {self.instrument_symbol} futures instrument")
                 return False
             
             # Setup WebSocket for real-time monitoring
@@ -749,12 +764,12 @@ class KiteDataFetcher:
             logger.info(f"   Previous RSI: {self.previous_rsi:.2f}")
             logger.info(f"   Current RSI: {rsi:.2f}")
             
-            # Check candle range condition (high - low < 30)
+            # Check candle range condition (high - low < 65)
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
             
-            if candle_range < 30:
-                logger.info(f"   ✓ Range condition met (< 30)")
+            if candle_range < 65:
+                logger.info(f"   ✓ Range condition met (< 65)")
                 logger.info(f"   📌 ALERT CANDLE MARKED for BUY")
                 logger.info(f"   🎯 Entry Trigger: HIGH > ₹{latest_candle['high']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
@@ -770,11 +785,11 @@ class KiteDataFetcher:
                     'close': latest_candle['close'],
                     'trigger_price': latest_candle['high'],  # Entry trigger
                     'stop_loss': latest_candle['low'],
-                    'target': latest_candle['high'] + 15
+                    'target': latest_candle['high'] + 35
                 }
                 logger.info("="*80)
             else:
-                logger.info(f"   ✗ Range condition NOT met (>= 30), ignoring signal")
+                logger.info(f"   ✗ Range condition NOT met (>= 65), ignoring signal")
         
         elif crossed_40_down:
             logger.info("="*80)
@@ -786,8 +801,8 @@ class KiteDataFetcher:
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
             
-            if candle_range < 30:
-                logger.info(f"   ✓ Range condition met (< 30)")
+            if candle_range < 65:
+                logger.info(f"   ✓ Range condition met (< 65)")
                 logger.info(f"   📌 ALERT CANDLE MARKED for SELL")
                 logger.info(f"   🎯 Entry Trigger: LOW < ₹{latest_candle['low']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
@@ -803,13 +818,13 @@ class KiteDataFetcher:
                     'close': latest_candle['close'],
                     'trigger_price': latest_candle['low'],  # Entry trigger
                     'stop_loss': latest_candle['high'],
-                    'target': latest_candle['low'] - 15
+                    'target': latest_candle['low'] - 35
                 }
                 logger.info("="*80)
             else:
-                logger.info(f"   ✗ ALERT NOT MARKED - Range condition NOT met (>= 30)")
-                logger.info(f"   Reason: Candle range {candle_range:.2f} >= 30 (too volatile)")
-                logger.info(f"   Rule: Only trade candles with range < 30 points")
+                logger.info(f"   ✗ ALERT NOT MARKED - Range condition NOT met (>= 65)")
+                logger.info(f"   Reason: Candle range {candle_range:.2f} >= 65 (too volatile)")
+                logger.info(f"   Rule: Only trade candles with range < 65 points")
         
         # Update previous RSI
         self.previous_rsi = rsi
