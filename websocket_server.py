@@ -577,7 +577,7 @@ class KiteDataFetcher:
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
-                "target": price + 15 if trade_type == "BUY" else price - 15
+                "target": price + 35 if trade_type == "BUY" else price - 35
             }
             
             logger.info(f"🎯 Type: {trade_type}")
@@ -654,7 +654,7 @@ class KiteDataFetcher:
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
-                "target": price + 15 if trade_type == "BUY" else price - 15
+                "target": price + 35 if trade_type == "BUY" else price - 35
             }
             
             logger.info(f"🎯 Type: {trade_type}")
