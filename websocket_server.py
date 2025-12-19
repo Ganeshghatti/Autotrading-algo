@@ -577,7 +577,7 @@ class KiteDataFetcher:
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
-                "target": price + 35 if trade_type == "BUY" else price - 35
+                "target": price + 30 if trade_type == "BUY" else price - 30
             }
             
             logger.info(f"🎯 Type: {trade_type}")
@@ -654,7 +654,7 @@ class KiteDataFetcher:
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
-                "target": price + 35 if trade_type == "BUY" else price - 35
+                "target": price + 30 if trade_type == "BUY" else price - 30
             }
             
             logger.info(f"🎯 Type: {trade_type}")
@@ -764,12 +764,12 @@ class KiteDataFetcher:
             logger.info(f"   Previous RSI: {self.previous_rsi:.2f}")
             logger.info(f"   Current RSI: {rsi:.2f}")
             
-            # Check candle range condition (high - low < 65)
+            # Check candle range condition (high - low < 50)
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
             
-            if candle_range < 65:
-                logger.info(f"   ✓ Range condition met (< 65)")
+            if candle_range < 50:
+                logger.info(f"   ✓ Range condition met (< 50)")
                 logger.info(f"   📌 ALERT CANDLE MARKED for BUY")
                 logger.info(f"   🎯 Entry Trigger: HIGH > ₹{latest_candle['high']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
@@ -785,11 +785,11 @@ class KiteDataFetcher:
                     'close': latest_candle['close'],
                     'trigger_price': latest_candle['high'],  # Entry trigger
                     'stop_loss': latest_candle['low'],
-                    'target': latest_candle['high'] + 35
+                    'target': latest_candle['high'] + 30
                 }
                 logger.info("="*80)
             else:
-                logger.info(f"   ✗ Range condition NOT met (>= 65), ignoring signal")
+                logger.info(f"   ✗ Range condition NOT met (>= 50), ignoring signal")
         
         elif crossed_40_down:
             logger.info("="*80)
@@ -801,8 +801,8 @@ class KiteDataFetcher:
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
             
-            if candle_range < 65:
-                logger.info(f"   ✓ Range condition met (< 65)")
+            if candle_range < 50:
+                logger.info(f"   ✓ Range condition met (< 50)")
                 logger.info(f"   📌 ALERT CANDLE MARKED for SELL")
                 logger.info(f"   🎯 Entry Trigger: LOW < ₹{latest_candle['low']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
@@ -818,13 +818,13 @@ class KiteDataFetcher:
                     'close': latest_candle['close'],
                     'trigger_price': latest_candle['low'],  # Entry trigger
                     'stop_loss': latest_candle['high'],
-                    'target': latest_candle['low'] - 35
+                    'target': latest_candle['low'] - 30
                 }
                 logger.info("="*80)
             else:
-                logger.info(f"   ✗ ALERT NOT MARKED - Range condition NOT met (>= 65)")
-                logger.info(f"   Reason: Candle range {candle_range:.2f} >= 65 (too volatile)")
-                logger.info(f"   Rule: Only trade candles with range < 65 points")
+                logger.info(f"   ✗ ALERT NOT MARKED - Range condition NOT met (>= 50)")
+                logger.info(f"   Reason: Candle range {candle_range:.2f} >= 50 (too volatile)")
+                logger.info(f"   Rule: Only trade candles with range < 50 points")
         
         # Update previous RSI
         self.previous_rsi = rsi
