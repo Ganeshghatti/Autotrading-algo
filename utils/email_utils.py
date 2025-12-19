@@ -134,6 +134,16 @@ def send_trade_notification(trade_type, trade_data):
                 <li><strong>Alert High:</strong> ₹{trade_data.get('alert_high', 'N/A')}</li>
                 <li><strong>Alert Low:</strong> ₹{trade_data.get('alert_low', 'N/A')}</li>
             </ul>
+            <hr>
+            <h3>🔔 Entry Trigger Confirmation:</h3>
+            <ul>
+                <li><strong>WebSocket Trigger High:</strong> ₹{trade_data.get('trigger_high', 'N/A')}</li>
+                <li><strong>WebSocket Trigger Low:</strong> ₹{trade_data.get('trigger_low', 'N/A')}</li>
+                <li><strong>Entry LTP:</strong> ₹{trade_data.get('entry_price', 'N/A')}</li>
+            </ul>
+            <p style="color: #7f8c8d; font-size: 12px; margin-top: 10px;">
+                <em>For BUY: Trigger High must be > Alert High | For SELL: Trigger Low must be < Alert Low</em>
+            </p>
         </body>
         </html>
         """

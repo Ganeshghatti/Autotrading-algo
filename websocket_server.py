@@ -550,7 +550,7 @@ class KiteDataFetcher:
             logger.error(traceback.format_exc())
             return False
     
-    def place_paper_trade(self, trade_type, price, alert_candle):
+    def place_paper_trade(self, trade_type, price, alert_candle, trigger_high=None, trigger_low=None):
         """Place a paper trade (simulated)"""
         try:
             logger.info("="*80)
@@ -576,6 +576,8 @@ class KiteDataFetcher:
                 "alert_high": alert_candle.get('high'),
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
+                "trigger_high": trigger_high,  # Actual WebSocket high that crossed alert high
+                "trigger_low": trigger_low,    # Actual WebSocket low that crossed alert low
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
                 "target": price + 30 if trade_type == "BUY" else price - 30
             }
@@ -611,7 +613,7 @@ class KiteDataFetcher:
             logger.info("="*80)
             return None
     
-    def place_real_trade(self, trade_type, price, alert_candle):
+    def place_real_trade(self, trade_type, price, alert_candle, trigger_high=None, trigger_low=None):
         """Place a real trade via Kite API"""
         try:
             logger.info("="*80)
@@ -653,6 +655,8 @@ class KiteDataFetcher:
                 "alert_high": alert_candle.get('high'),
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
+                "trigger_high": trigger_high,  # Actual WebSocket high that crossed alert high
+                "trigger_low": trigger_low,    # Actual WebSocket low that crossed alert low
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
                 "target": price + 30 if trade_type == "BUY" else price - 30
             }
@@ -888,11 +892,11 @@ class KiteDataFetcher:
                 logger.info(f"   Entry Method: Real-time WebSocket")
                 logger.info("="*80)
                 
-                # Place BUY order at current LTP
+                # Place BUY order at current LTP with trigger high/low info
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("BUY", ltp, alert)
+                    trade = self.place_paper_trade("BUY", ltp, alert, trigger_high=current_high, trigger_low=current_low)
                 else:  # real
-                    trade = self.place_real_trade("BUY", ltp, alert)
+                    trade = self.place_real_trade("BUY", ltp, alert, trigger_high=current_high, trigger_low=current_low)
                 
                 if trade:
                     self.open_trade = trade
@@ -908,11 +912,11 @@ class KiteDataFetcher:
                 logger.info(f"   Entry Method: Real-time WebSocket")
                 logger.info("="*80)
                 
-                # Place SELL order at current LTP
+                # Place SELL order at current LTP with trigger high/low info
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("SELL", ltp, alert)
+                    trade = self.place_paper_trade("SELL", ltp, alert, trigger_high=current_high, trigger_low=current_low)
                 else:  # real
-                    trade = self.place_real_trade("SELL", ltp, alert)
+                    trade = self.place_real_trade("SELL", ltp, alert, trigger_high=current_high, trigger_low=current_low)
                 
                 if trade:
                     self.open_trade = trade
