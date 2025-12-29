@@ -5,11 +5,13 @@ from dotenv import load_dotenv
 from utils.file_utils import read_from_file
 from routes.auth_routes import register_auth_routes
 from routes.trading_routes import register_trading_routes
+from routes.admin_routes import register_admin_routes
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"
 
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
@@ -28,6 +30,8 @@ def home():
 
 register_auth_routes(app, kite, API_SECRET)
 register_trading_routes(app, kite)
+
+register_admin_routes(app)
     
 if __name__ == "__main__":
     app.run(debug=True, port=4000)
