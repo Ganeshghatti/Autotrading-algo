@@ -576,8 +576,8 @@ class KiteDataFetcher:
                 "alert_high": alert_candle.get('high'),
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
-                "trigger_high": trigger_high,  # Actual WebSocket high that crossed alert high
-                "trigger_low": trigger_low,    # Actual WebSocket low that crossed alert low
+                "trigger_high": trigger_high,  # LTP that crossed alert high (for BUY)
+                "trigger_low": trigger_low,    # LTP that crossed alert low (for SELL)
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
                 "target": price + 30 if trade_type == "BUY" else price - 30
             }
@@ -655,8 +655,8 @@ class KiteDataFetcher:
                 "alert_high": alert_candle.get('high'),
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
-                "trigger_high": trigger_high,  # Actual WebSocket high that crossed alert high
-                "trigger_low": trigger_low,    # Actual WebSocket low that crossed alert low
+                "trigger_high": trigger_high,  # LTP that crossed alert high (for BUY)
+                "trigger_low": trigger_low,    # LTP that crossed alert low (for SELL)
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
                 "target": price + 30 if trade_type == "BUY" else price - 30
             }
@@ -874,7 +874,7 @@ class KiteDataFetcher:
     
     def check_entry_trigger_realtime(self, ltp, current_high, current_low):
         """
-        Check entry trigger using REAL-TIME WebSocket data
+        Check entry trigger using REAL-TIME WebSocket LTP
         Called from WebSocket on_ticks callback
         """
         if not self.alert_candle:
@@ -883,40 +883,40 @@ class KiteDataFetcher:
         alert = self.alert_candle
         
         if alert['type'] == 'BUY':
-            # BUY: Check if real-time HIGH crosses alert candle's HIGH
-            if current_high > alert['trigger_price']:
+            # BUY: Check if LTP crosses alert candle's HIGH
+            if ltp > alert['trigger_price']:
                 logger.info("="*80)
                 logger.info(f"✅ ENTRY TRIGGER HIT (REAL-TIME)!")
-                logger.info(f"   WebSocket High: ₹{current_high:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current LTP: ₹{ltp:.2f}")
+                logger.info(f"   WebSocket LTP: ₹{ltp:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Entry Price: ₹{ltp:.2f}")
                 logger.info(f"   Entry Method: Real-time WebSocket")
                 logger.info("="*80)
                 
-                # Place BUY order at current LTP with trigger high/low info
+                # Place BUY order at current LTP with trigger LTP info
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("BUY", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_paper_trade("BUY", ltp, alert, trigger_high=ltp, trigger_low=None)
                 else:  # real
-                    trade = self.place_real_trade("BUY", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_real_trade("BUY", ltp, alert, trigger_high=ltp, trigger_low=None)
                 
                 if trade:
                     self.open_trade = trade
                     self.alert_candle = None  # Clear alert candle
         
         elif alert['type'] == 'SELL':
-            # SELL: Check if real-time LOW crosses alert candle's LOW
-            if current_low < alert['trigger_price']:
+            # SELL: Check if LTP crosses alert candle's LOW
+            if ltp < alert['trigger_price']:
                 logger.info("="*80)
                 logger.info(f"✅ ENTRY TRIGGER HIT (REAL-TIME)!")
-                logger.info(f"   WebSocket Low: ₹{current_low:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current LTP: ₹{ltp:.2f}")
+                logger.info(f"   WebSocket LTP: ₹{ltp:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Entry Price: ₹{ltp:.2f}")
                 logger.info(f"   Entry Method: Real-time WebSocket")
                 logger.info("="*80)
                 
-                # Place SELL order at current LTP with trigger high/low info
+                # Place SELL order at current LTP with trigger LTP info
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("SELL", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_paper_trade("SELL", ltp, alert, trigger_high=None, trigger_low=ltp)
                 else:  # real
-                    trade = self.place_real_trade("SELL", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_real_trade("SELL", ltp, alert, trigger_high=None, trigger_low=ltp)
                 
                 if trade:
                     self.open_trade = trade
