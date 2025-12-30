@@ -1,49 +1,52 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Trading Dashboard</title>
-</head>
-<body>
-    <h2>Trading Configuration</h2>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h2>Trading Configuration</h2>
 
-    <form method="POST">
-        <label>High Low Difference</label><br>
+      <form method="POST">
+        <label>High Low Difference</label><br />
         <input
-            type="text"
-            name="high_low_diff"
-            value="{{ config.high_low_diff or '' }}"
-            required
-        >
-        <br><br>
+          type="text"
+          name="high_low_diff"
+          value="{{ config.high_low_diff or '' }}"
+          required
+        />
+        <br /><br />
 
-        <label>Instrument Token</label><br>
+        <label>Instrument Token</label><br />
         <input
-            type="text"
-            name="instrument_token"
-            value="{{ config.instrument_token or '' }}"
-            required
-        >
-        <br><br>
+          type="text"
+          name="instrument_token"
+          value="{{ config.instrument_token or '' }}"
+          required
+        />
+        <br /><br />
 
-        <label>Target</label><br>
+        <label>Target</label><br />
         <input
-            type="text"
-            name="target"
-            value="{{ config.target or '' }}"
-            required
-        >
-        <br><br>
+          type="text"
+          name="target"
+          value="{{ config.target or '' }}"
+          required
+        />
+        <br /><br />
 
-        <label>Number of Lots</label><br>
+        <label>Number of Lots</label><br />
         <input
-            type="text"
-            name="lots"
-            value="{{ config.lots or '' }}"
-            required
-        >
-        <br><br>
+          type="text"
+          name="lots"
+          value="{{ config.lots or '' }}"
+          required
+        />
+        <br /><br />
 
         <button type="submit">Save Configuration</button>
-    </form>
-</body>
+      </form>
+    </div>
+  </body>
 </html>
