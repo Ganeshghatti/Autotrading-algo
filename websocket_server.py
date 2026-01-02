@@ -99,12 +99,15 @@ class KiteDataFetcher:
         self.candle_processing_delay = 10  # Wait 10 seconds after interval (configurable)
         self.candles_data_file = "candles_data.json"
         self.trades_file = "trades.json"  # All trades (paper and real) saved here
+        self.config_file = "config.json"
         
-        # Trading configuration
+        # Trading configuration (from .env)
         self.trading_enabled = os.getenv("TRADING_ENABLED", "paper").lower()  # "real", "paper", or "disabled"
-        self.trading_lots = int(os.getenv("TRADING_LOTS", "1"))  # Number of lots to trade
-        self.instrument_symbol = os.getenv("INSTRUMENT_SYMBOL", "BANKNIFTY").upper()  # Symbol from .env
-        self.lot_size = int(os.getenv("LOT_SIZE", "15"))  # Lot size from .env (default 15 for BANKNIFTY)
+        
+        # Load dynamic configuration from config.json (includes instrument details)
+        self.load_config()
+        
+        # Calculate quantity
         self.quantity = self.trading_lots * self.lot_size  # Total units to trade
         
         # Instrument will be fetched dynamically from API based on symbol
@@ -128,57 +131,173 @@ class KiteDataFetcher:
         logger.info(f"📧 Email Notifications: {'Enabled' if EMAIL_ENABLED else 'Disabled'}")
         logger.info("="*80)
     
-    def get_current_month_futures(self):
+    def load_config(self):
+        """Load trading configuration from config.json"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r') as f:
+                    config = json.load(f)
+                    
+                # Load instrument details
+                self.instrument_symbol = config.get('instrument_symbol', 'BANKNIFTY').upper()
+                self.exchange_config = config.get('exchange', 'NFO').upper()
+                self.instrument_type_config = config.get('instrument_type', 'FUT').upper()
+                
+                # Load parameters from config.json with defaults
+                self.trading_lots = int(config.get('lots', 1))
+                self.target_points = int(config.get('target', 30))
+                self.high_low_diff = int(config.get('high_low_diff', 50))
+                self.lot_size = int(config.get('lot_size', 15))
+                
+                logger.info("📄 Loaded configuration from config.json:")
+                logger.info(f"   Instrument: {self.instrument_symbol}")
+                logger.info(f"   Exchange: {self.exchange_config}")
+                logger.info(f"   Type: {self.instrument_type_config}")
+                logger.info(f"   Lots: {self.trading_lots}")
+                logger.info(f"   Target: {self.target_points} points")
+                logger.info(f"   High-Low Diff: {self.high_low_diff} points")
+            else:
+                # Defaults if config.json doesn't exist
+                self.instrument_symbol = os.getenv("INSTRUMENT_SYMBOL", "BANKNIFTY").upper()
+                self.exchange_config = "NFO"
+                self.instrument_type_config = "FUT"
+                self.trading_lots = 1
+                self.target_points = 30
+                self.high_low_diff = 50
+                self.lot_size = 15
+                logger.warning(f"⚠ {self.config_file} not found, using defaults")
+                
+        except Exception as e:
+            logger.error(f"✗ Error loading config: {str(e)}")
+            # Set defaults on error
+            self.instrument_symbol = os.getenv("INSTRUMENT_SYMBOL", "BANKNIFTY").upper()
+            self.exchange_config = "NFO"
+            self.instrument_type_config = "FUT"
+            self.trading_lots = 1
+            self.target_points = 30
+            self.high_low_diff = 50
+            self.lot_size = 15
+    
+    def reload_config(self):
+        """Reload configuration from config.json (can be called anytime)"""
+        logger.info("🔄 Reloading configuration from config.json...")
+        old_lots = self.trading_lots
+        old_target = self.target_points
+        old_diff = self.high_low_diff
+        old_lot_size = self.lot_size
+        
+        self.load_config()
+        self.quantity = self.trading_lots * self.lot_size  # Recalculate quantity
+        
+        # Log changes
+        if old_lots != self.trading_lots:
+            logger.info(f"   ✓ Lots changed: {old_lots} → {self.trading_lots}")
+        if old_lot_size != self.lot_size:
+            logger.info(f"   ✓ Lot Size changed: {old_lot_size} → {self.lot_size}")
+        if old_target != self.target_points:
+            logger.info(f"   ✓ Target changed: {old_target} → {self.target_points}")
+        if old_diff != self.high_low_diff:
+            logger.info(f"   ✓ High-Low Diff changed: {old_diff} → {self.high_low_diff}")
+    
+    def get_instrument_details(self):
         """
-        Fetch current month futures instrument token for the configured symbol
-        Returns the nearest expiry futures contract
+        Fetch instrument details based on config (works for any instrument type)
+        Supports: Futures, Stocks, Options, Commodities
+        Returns the appropriate instrument based on exchange and type
         """
         try:
-            logger.info(f"Fetching {self.instrument_symbol} futures instruments...")
-            instruments = self.kite.instruments("NFO")
+            logger.info(f"📡 Fetching instrument: {self.instrument_symbol} ({self.instrument_type_config}) from {self.exchange_config}...")
+            instruments = self.kite.instruments(self.exchange_config)
             
-            # Filter for specified symbol futures only
-            futures = []
+            matching_instruments = []
+            
             for inst in instruments:
                 name = inst.get('name', '').strip().upper()
-                instrument_type = inst.get('instrument_type', '')
+                tradingsymbol = inst.get('tradingsymbol', '').strip().upper()
+                instrument_type = inst.get('instrument_type', '').strip().upper()
+                exchange = inst.get('exchange', '').strip().upper()
                 
-                if name == self.instrument_symbol and instrument_type == 'FUT':
-                    futures.append({
-                        "instrument_token": inst.get('instrument_token'),
-                        "tradingsymbol": inst.get('tradingsymbol'),
-                        "name": inst.get('name'),
-                        "expiry": inst.get('expiry'),
-                        "exchange": inst.get('exchange')
-                    })
+                # Match based on instrument type
+                if self.instrument_type_config == 'EQ':
+                    # For stocks: match tradingsymbol exactly
+                    if tradingsymbol == self.instrument_symbol and instrument_type == 'EQ':
+                        matching_instruments.append({
+                            "instrument_token": inst.get('instrument_token'),
+                            "tradingsymbol": inst.get('tradingsymbol'),
+                            "name": inst.get('name'),
+                            "lot_size": inst.get('lot_size', 1),  # Stocks usually have lot_size 1
+                            "exchange": inst.get('exchange'),
+                            "instrument_type": inst.get('instrument_type'),
+                            "expiry": None
+                        })
+                
+                elif self.instrument_type_config in ['FUT', 'CE', 'PE']:
+                    # For derivatives: match name and instrument_type
+                    if name == self.instrument_symbol and instrument_type == self.instrument_type_config:
+                        matching_instruments.append({
+                            "instrument_token": inst.get('instrument_token'),
+                            "tradingsymbol": inst.get('tradingsymbol'),
+                            "name": inst.get('name'),
+                            "expiry": inst.get('expiry'),
+                            "lot_size": inst.get('lot_size', 1),
+                            "exchange": inst.get('exchange'),
+                            "instrument_type": inst.get('instrument_type'),
+                            "strike": inst.get('strike', 0) if self.instrument_type_config in ['CE', 'PE'] else None
+                        })
             
-            # Sort by expiry (nearest first)
-            futures.sort(key=lambda x: x.get('expiry', ''))
-            
-            if not futures:
-                logger.error(f"✗ No {self.instrument_symbol} futures found")
+            if not matching_instruments:
+                logger.error(f"✗ No matching instruments found for {self.instrument_symbol} ({self.instrument_type_config})")
+                logger.error(f"   Exchange: {self.exchange_config}")
+                logger.error(f"   Please check your config.json settings")
                 return None
             
-            # Get nearest expiry (current month)
-            nearest = futures[0]
-            self.instrument_token = str(nearest['instrument_token'])
-            self.instrument_name = f"{self.instrument_symbol} FUT {nearest['expiry'].strftime('%d-%b-%Y') if hasattr(nearest['expiry'], 'strftime') else nearest['expiry']}"
-            self.tradingsymbol = nearest['tradingsymbol']
+            # Select appropriate instrument
+            if self.instrument_type_config == 'EQ':
+                # For stocks, just pick the first match
+                selected = matching_instruments[0]
+            else:
+                # For derivatives, sort by expiry and get nearest
+                matching_instruments.sort(key=lambda x: x.get('expiry') or '')
+                selected = matching_instruments[0]
             
-            # Lot size is already set from .env in __init__
-            # Recalculate quantity in case it wasn't set properly
+            # Set instance variables
+            self.instrument_token = str(selected['instrument_token'])
+            self.tradingsymbol = selected['tradingsymbol']
+            
+            # Use lot_size from config, but log if API provides different value
+            api_lot_size = selected['lot_size']
+            if api_lot_size != self.lot_size:
+                logger.warning(f"⚠ API lot size ({api_lot_size}) differs from config ({self.lot_size})")
+                logger.warning(f"   Using config value: {self.lot_size}")
+            
             self.quantity = self.trading_lots * self.lot_size
             
-            logger.info(f"✓ Selected {self.instrument_symbol} Futures: {self.tradingsymbol}")
+            # Create instrument name for display
+            if self.instrument_type_config == 'EQ':
+                self.instrument_name = f"{self.instrument_symbol} (Stock)"
+            elif self.instrument_type_config == 'FUT':
+                expiry_str = selected['expiry'].strftime('%d-%b-%Y') if hasattr(selected['expiry'], 'strftime') else str(selected['expiry'])
+                self.instrument_name = f"{self.instrument_symbol} FUT {expiry_str}"
+            elif self.instrument_type_config in ['CE', 'PE']:
+                expiry_str = selected['expiry'].strftime('%d-%b-%Y') if hasattr(selected['expiry'], 'strftime') else str(selected['expiry'])
+                strike = selected.get('strike', 0)
+                self.instrument_name = f"{self.instrument_symbol} {strike} {self.instrument_type_config} {expiry_str}"
+            
+            logger.info(f"✓ Selected Instrument: {self.tradingsymbol}")
             logger.info(f"  Instrument Token: {self.instrument_token}")
-            logger.info(f"  Expiry: {nearest['expiry']}")
-            logger.info(f"  Lot Size: {self.lot_size} units per lot (from .env)")
+            logger.info(f"  Exchange: {self.exchange_config}")
+            logger.info(f"  Type: {self.instrument_type_config}")
+            if selected.get('expiry'):
+                logger.info(f"  Expiry: {selected['expiry']}")
+            if selected.get('strike'):
+                logger.info(f"  Strike: {selected['strike']}")
+            logger.info(f"  Lot Size: {self.lot_size} units per lot")
             logger.info(f"  Trading: {self.trading_lots} lot(s) = {self.quantity} units")
             
-            return nearest
+            return selected
             
         except Exception as e:
-            logger.error(f"✗ Error fetching {self.instrument_symbol} futures: {str(e)}")
+            logger.error(f"✗ Error fetching instrument details: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return None
@@ -206,9 +325,9 @@ class KiteDataFetcher:
             logger.info("Setting access token")
             self.kite.set_access_token(self.access_token)
             
-            # Fetch current month futures for configured instrument
-            if not self.get_current_month_futures():
-                logger.error(f"✗ Failed to fetch {self.instrument_symbol} futures instrument")
+            # Fetch instrument details based on config
+            if not self.get_instrument_details():
+                logger.error(f"✗ Failed to fetch instrument: {self.instrument_symbol}")
                 return False
             
             # Setup WebSocket for real-time monitoring
@@ -380,11 +499,19 @@ class KiteDataFetcher:
         # Place exit order for real trades
         if trade.get('trade_mode') == 'REAL':
             try:
+                # Determine exchange constant based on config
+                if self.exchange_config == 'NSE':
+                    exchange = self.kite.EXCHANGE_NSE
+                elif self.exchange_config == 'NFO':
+                    exchange = self.kite.EXCHANGE_NFO
+                else:
+                    exchange = self.exchange_config
+                
                 # Place opposite order to exit
                 exit_order_type = 'SELL' if trade['transaction_type'] == 'BUY' else 'BUY'
                 order_id = self.kite.place_order(
                     variety=self.kite.VARIETY_REGULAR,
-                    exchange=self.kite.EXCHANGE_NFO,
+                    exchange=exchange,
                     tradingsymbol=self.tradingsymbol,
                     transaction_type=exit_order_type,
                     quantity=trade['quantity'],
@@ -579,7 +706,7 @@ class KiteDataFetcher:
                 "trigger_high": trigger_high,  # LTP that crossed alert high (for BUY)
                 "trigger_low": trigger_low,    # LTP that crossed alert low (for SELL)
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
-                "target": price + 30 if trade_type == "BUY" else price - 30
+                "target": price + self.target_points if trade_type == "BUY" else price - self.target_points
             }
             
             logger.info(f"🎯 Type: {trade_type}")
@@ -622,9 +749,18 @@ class KiteDataFetcher:
             
             # Place order via Kite API
             logger.info(f"📡 Sending order to Kite API...")
+            
+            # Determine exchange constant based on config
+            if self.exchange_config == 'NSE':
+                exchange = self.kite.EXCHANGE_NSE
+            elif self.exchange_config == 'NFO':
+                exchange = self.kite.EXCHANGE_NFO
+            else:
+                exchange = self.exchange_config  # Use as-is if not recognized
+            
             order_id = self.kite.place_order(
                 variety=self.kite.VARIETY_REGULAR,
-                exchange=self.kite.EXCHANGE_NFO,
+                exchange=exchange,
                 tradingsymbol=self.tradingsymbol,
                 transaction_type=trade_type,
                 quantity=self.quantity,
@@ -768,12 +904,12 @@ class KiteDataFetcher:
             logger.info(f"   Previous RSI: {self.previous_rsi:.2f}")
             logger.info(f"   Current RSI: {rsi:.2f}")
             
-            # Check candle range condition (high - low < 50)
+            # Check candle range condition (high - low < high_low_diff)
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
             
-            if candle_range < 50:
-                logger.info(f"   ✓ Range condition met (< 50)")
+            if candle_range < self.high_low_diff:
+                logger.info(f"   ✓ Range condition met (< {self.high_low_diff})")
                 logger.info(f"   📌 ALERT CANDLE MARKED for BUY")
                 logger.info(f"   🎯 Entry Trigger: HIGH > ₹{latest_candle['high']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
@@ -789,11 +925,11 @@ class KiteDataFetcher:
                     'close': latest_candle['close'],
                     'trigger_price': latest_candle['high'],  # Entry trigger
                     'stop_loss': latest_candle['low'],
-                    'target': latest_candle['high'] + 30
+                    'target': latest_candle['high'] + self.target_points
                 }
                 logger.info("="*80)
             else:
-                logger.info(f"   ✗ Range condition NOT met (>= 50), ignoring signal")
+                logger.info(f"   ✗ Range condition NOT met (>= {self.high_low_diff}), ignoring signal")
         
         elif crossed_40_down:
             logger.info("="*80)
@@ -805,8 +941,8 @@ class KiteDataFetcher:
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
             
-            if candle_range < 50:
-                logger.info(f"   ✓ Range condition met (< 50)")
+            if candle_range < self.high_low_diff:
+                logger.info(f"   ✓ Range condition met (< {self.high_low_diff})")
                 logger.info(f"   📌 ALERT CANDLE MARKED for SELL")
                 logger.info(f"   🎯 Entry Trigger: LOW < ₹{latest_candle['low']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
@@ -822,13 +958,13 @@ class KiteDataFetcher:
                     'close': latest_candle['close'],
                     'trigger_price': latest_candle['low'],  # Entry trigger
                     'stop_loss': latest_candle['high'],
-                    'target': latest_candle['low'] - 30
+                    'target': latest_candle['low'] - self.target_points
                 }
                 logger.info("="*80)
             else:
-                logger.info(f"   ✗ ALERT NOT MARKED - Range condition NOT met (>= 50)")
-                logger.info(f"   Reason: Candle range {candle_range:.2f} >= 50 (too volatile)")
-                logger.info(f"   Rule: Only trade candles with range < 50 points")
+                logger.info(f"   ✗ ALERT NOT MARKED - Range condition NOT met (>= {self.high_low_diff})")
+                logger.info(f"   Reason: Candle range {candle_range:.2f} >= {self.high_low_diff} (too volatile)")
+                logger.info(f"   Rule: Only trade candles with range < {self.high_low_diff} points")
         
         # Update previous RSI
         self.previous_rsi = rsi
@@ -1078,6 +1214,9 @@ class KiteDataFetcher:
                 time.sleep(self.retry_interval)
                 connection_success = self.connect_to_kite()
                 continue
+            
+            # Reload config before each fetch to pick up any changes
+            self.reload_config()
             
             # Fetch historical data at aligned 5-minute interval
             logger.info(f"🔄 Starting data fetch at {datetime.now().strftime('%H:%M:%S')}")

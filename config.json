@@ -1,6 +1,9 @@
 {
+    "instrument_symbol": "BANKNIFTY",
+    "exchange": "NFO",
+    "instrument_type": "FUT",
     "high_low_diff": "500",
-    "instrument_token": "50",
-    "target": "1000",
-    "lots": "80"
+    "target": "100",
+    "lots": "2",
+    "lot_size": "15"
 }
