@@ -69,13 +69,19 @@ def register_admin_routes(app):
             return jsonify({"error": "Unauthorized"}), 401
         
         try:
+            # websocket_server.log is the CURRENT active log file
+            # Older logs are rotated to websocket_server.log.YYYY-MM-DD
             if not os.path.exists(LOG_FILE):
-                return jsonify({"logs": "No logs available yet. Start the trading bot to see logs.", "lines": 0})
+                return jsonify({
+                    "logs": "No logs available yet. Start the trading bot to see logs.", 
+                    "lines": 0,
+                    "total_lines": 0
+                })
             
-            # Read last 100 lines of log file
-            with open(LOG_FILE, 'r') as f:
+            # Read last 200 lines of CURRENT log file for better scrolling experience
+            with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
-                last_lines = lines[-100:] if len(lines) > 100 else lines
+                last_lines = lines[-200:] if len(lines) > 200 else lines
                 log_content = ''.join(last_lines)
                 
             return jsonify({

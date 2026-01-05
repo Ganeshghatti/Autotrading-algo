@@ -18,3 +18,4 @@ __pycache__/
 credentials.json
 websocket_server.log
 candles_data.json
+websocket_server.log*

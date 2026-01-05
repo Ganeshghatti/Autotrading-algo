@@ -398,6 +398,27 @@
       const logInfo = document.getElementById('logInfo');
       const refreshBtn = document.getElementById('refreshBtn');
 
+      // Track if user is scrolling
+      let userScrolling = false;
+      let scrollTimeout = null;
+
+      logsContainer.addEventListener('scroll', () => {
+        // Check if user has scrolled away from bottom
+        const isAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop <= logsContainer.clientHeight + 50;
+        
+        if (!isAtBottom) {
+          userScrolling = true;
+          // Clear existing timeout
+          if (scrollTimeout) clearTimeout(scrollTimeout);
+          // Auto-enable scrolling after 10 seconds of no manual scroll
+          scrollTimeout = setTimeout(() => {
+            userScrolling = false;
+          }, 10000);
+        } else {
+          userScrolling = false;
+        }
+      });
+
       // Fetch logs from API
       async function fetchLogs() {
         try {
@@ -414,8 +435,10 @@
           // Update logs content with syntax highlighting
           logsContent.innerHTML = highlightLogs(data.logs);
           
-          // Auto-scroll to bottom
-          logsContainer.scrollTop = logsContainer.scrollHeight;
+          // Auto-scroll to bottom ONLY if user hasn't manually scrolled up
+          if (!userScrolling) {
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+          }
           
           // Update status
           logStatus.className = 'status-badge active';
@@ -433,10 +456,11 @@
         }
       }
 
-      // Refresh button
+      // Refresh button - also forces scroll to bottom
       refreshBtn.addEventListener('click', () => {
         refreshBtn.style.transform = 'rotate(360deg)';
         setTimeout(() => refreshBtn.style.transform = 'rotate(0deg)', 600);
+        userScrolling = false; // Force enable auto-scroll
         fetchLogs();
       });
 

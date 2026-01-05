@@ -185,9 +185,19 @@ class KiteDataFetcher:
         old_target = self.target_points
         old_diff = self.high_low_diff
         old_lot_size = self.lot_size
+        old_symbol = self.instrument_symbol
+        old_exchange = self.exchange_config
+        old_type = self.instrument_type_config
         
         self.load_config()
         self.quantity = self.trading_lots * self.lot_size  # Recalculate quantity
+        
+        # Check if instrument changed
+        instrument_changed = (
+            old_symbol != self.instrument_symbol or 
+            old_exchange != self.exchange_config or 
+            old_type != self.instrument_type_config
+        )
         
         # Log changes
         if old_lots != self.trading_lots:
@@ -198,6 +208,44 @@ class KiteDataFetcher:
             logger.info(f"   ✓ Target changed: {old_target} → {self.target_points}")
         if old_diff != self.high_low_diff:
             logger.info(f"   ✓ High-Low Diff changed: {old_diff} → {self.high_low_diff}")
+        
+        # If instrument changed, fetch new details and resubscribe WebSocket
+        if instrument_changed:
+            logger.warning("⚠ INSTRUMENT CHANGED - Fetching new details and resubscribing...")
+            logger.info(f"   Old: {old_symbol} ({old_type}) on {old_exchange}")
+            logger.info(f"   New: {self.instrument_symbol} ({self.instrument_type_config}) on {self.exchange_config}")
+            
+            # Unsubscribe from old instrument
+            if self.kws and self.ws_connected and self.instrument_token:
+                try:
+                    logger.info(f"   📴 Unsubscribing from old instrument token: {self.instrument_token}")
+                    self.kws.unsubscribe([int(self.instrument_token)])
+                except Exception as e:
+                    logger.warning(f"   ⚠ Error unsubscribing: {str(e)}")
+            
+            # Fetch new instrument details
+            instrument_found = self.get_instrument_details()
+            
+            if instrument_found:
+                # Subscribe to new instrument
+                if self.kws and self.ws_connected:
+                    try:
+                        logger.info(f"   📡 Subscribing to new instrument token: {self.instrument_token}")
+                        self.kws.subscribe([int(self.instrument_token)])
+                        self.kws.set_mode(self.kws.MODE_FULL, [int(self.instrument_token)])
+                        logger.info("   ✅ Successfully subscribed to new instrument!")
+                    except Exception as e:
+                        logger.error(f"   ✗ Error subscribing to new instrument: {str(e)}")
+                else:
+                    logger.warning("   ⚠ WebSocket not connected - will subscribe on next connection")
+            else:
+                logger.error("   ✗ Failed to fetch new instrument details!")
+            
+            # Clear trading state when instrument changes
+            self.alert_candle = None
+            self.open_trade = None
+            self.first_candle_time = None
+            logger.info("   🧹 Cleared trading state (alerts, open trades)")
     
     def get_instrument_details(self):
         """
