@@ -247,6 +247,57 @@ class KiteDataFetcher:
             self.first_candle_time = None
             logger.info("   🧹 Cleared trading state (alerts, open trades)")
     
+    def validate_symbol_format(self):
+        """Validate and provide hints about symbol format"""
+        symbol = self.instrument_symbol
+        inst_type = self.instrument_type_config
+        
+        # Check if symbol has numbers (likely a full trading symbol)
+        has_numbers = any(char.isdigit() for char in symbol)
+        
+        if has_numbers:
+            # User entered what looks like a full trading symbol
+            # Validate format based on instrument type
+            
+            if inst_type == 'FUT':
+                # Expected format: BANKNIFTY26JANFUT or NIFTY26FEBFUT
+                if not symbol.endswith('FUT'):
+                    logger.warning(f"⚠ Symbol format tip: Futures should end with 'FUT'")
+                    logger.warning(f"   Example: BANKNIFTY26JANFUT")
+                    logger.warning(f"   Or use base symbol: BANKNIFTY (auto-selects nearest expiry)")
+            
+            elif inst_type in ['CE', 'PE']:
+                # Expected format: BANKNIFTY26JAN50000CE
+                if not (symbol.endswith('CE') or symbol.endswith('PE')):
+                    logger.warning(f"⚠ Symbol format tip: Options should end with 'CE' or 'PE'")
+                    logger.warning(f"   Example: BANKNIFTY26JAN50000CE")
+                    logger.warning(f"   Or use base symbol: BANKNIFTY (auto-selects nearest expiry)")
+                
+                # Check if strike price format looks valid (should have 4-5 digits before CE/PE)
+                import re
+                strike_pattern = r'(\d{4,6})(CE|PE)$'
+                match = re.search(strike_pattern, symbol)
+                if match:
+                    strike = match.group(1)
+                    # Check if strike looks suspicious (e.g., starts with 0 or too long)
+                    if strike.startswith('0'):
+                        logger.error(f"❌ Invalid strike price: {strike}")
+                        logger.error(f"   Strike prices don't start with 0")
+                        logger.error(f"   Did you mean something like: BANKNIFTY26JAN{strike.lstrip('0')}CE?")
+                        logger.error(f"   Common BANKNIFTY strikes: 48000, 49000, 50000, 51000")
+                        return False
+                    if len(strike) > 6:
+                        logger.error(f"❌ Invalid strike price: {strike} (too long)")
+                        logger.error(f"   BANKNIFTY strikes are typically 5 digits (e.g., 50000)")
+                        logger.error(f"   Format: BANKNIFTY26JAN50000CE")
+                        return False
+        else:
+            # User entered base symbol (e.g., BANKNIFTY, NIFTY)
+            logger.info(f"ℹ️  Base symbol detected: '{symbol}'")
+            logger.info(f"   System will auto-select nearest {inst_type} expiry")
+        
+        return True
+    
     def get_instrument_details(self):
         """
         Fetch instrument details based on config (works for any instrument type)
@@ -255,9 +306,19 @@ class KiteDataFetcher:
         """
         try:
             logger.info(f"📡 Fetching instrument: {self.instrument_symbol} ({self.instrument_type_config}) from {self.exchange_config}...")
+            
+            # Validate symbol format first
+            if not self.validate_symbol_format():
+                logger.error("✗ Symbol format validation failed. Please correct your config.")
+                return None
+            
             instruments = self.kite.instruments(self.exchange_config)
             
             matching_instruments = []
+            
+            # Check if user entered a full trading symbol (contains numbers/dates)
+            # E.g., BANKNIFTY26JAN50000CE instead of just BANKNIFTY
+            has_numbers = any(char.isdigit() for char in self.instrument_symbol)
             
             for inst in instruments:
                 name = inst.get('name', '').strip().upper()
@@ -280,8 +341,21 @@ class KiteDataFetcher:
                         })
                 
                 elif self.instrument_type_config in ['FUT', 'CE', 'PE']:
-                    # For derivatives: match name and instrument_type
-                    if name == self.instrument_symbol and instrument_type == self.instrument_type_config:
+                    # For derivatives: support BOTH base name and full trading symbol
+                    match_found = False
+                    
+                    if has_numbers:
+                        # User entered full trading symbol (e.g., BANKNIFTY26JAN0960200CE)
+                        # Match by exact trading symbol
+                        if tradingsymbol == self.instrument_symbol and instrument_type == self.instrument_type_config:
+                            match_found = True
+                    else:
+                        # User entered base name (e.g., BANKNIFTY)
+                        # Match by name
+                        if name == self.instrument_symbol and instrument_type == self.instrument_type_config:
+                            match_found = True
+                    
+                    if match_found:
                         matching_instruments.append({
                             "instrument_token": inst.get('instrument_token'),
                             "tradingsymbol": inst.get('tradingsymbol'),
@@ -296,8 +370,44 @@ class KiteDataFetcher:
             if not matching_instruments:
                 logger.error(f"✗ No matching instruments found for {self.instrument_symbol} ({self.instrument_type_config})")
                 logger.error(f"   Exchange: {self.exchange_config}")
-                logger.error(f"   Please check your config.json settings")
+                logger.error("")
+                
+                if has_numbers:
+                    logger.error(f"   '{self.instrument_symbol}' looks like a full trading symbol but wasn't found.")
+                    logger.error(f"   The symbol might be invalid or expired.")
+                    logger.error("")
+                    logger.error("   📋 CORRECT EXAMPLES:")
+                    if self.instrument_type_config == 'FUT':
+                        logger.error(f"      ✓ BANKNIFTY26JANFUT  (Full symbol)")
+                        logger.error(f"      ✓ BANKNIFTY          (Base - auto-selects expiry)")
+                    elif self.instrument_type_config == 'CE':
+                        logger.error(f"      ✓ BANKNIFTY26JAN50000CE  (Full symbol)")
+                        logger.error(f"      ✓ BANKNIFTY              (Base - auto-selects expiry)")
+                    elif self.instrument_type_config == 'PE':
+                        logger.error(f"      ✓ BANKNIFTY26JAN49000PE  (Full symbol)")
+                        logger.error(f"      ✓ BANKNIFTY              (Base - auto-selects expiry)")
+                    elif self.instrument_type_config == 'EQ':
+                        logger.error(f"      ✓ SBIN, RELIANCE, TCS, INFY")
+                else:
+                    logger.error(f"   '{self.instrument_symbol}' is a base symbol but no {self.instrument_type_config} found.")
+                    logger.error(f"   Make sure the symbol is correct for {self.exchange_config}.")
+                    logger.error("")
+                    logger.error("   📋 VALID BASE SYMBOLS:")
+                    if self.exchange_config == 'NFO':
+                        logger.error(f"      ✓ BANKNIFTY, NIFTY, FINNIFTY, MIDCPNIFTY")
+                    elif self.exchange_config == 'NSE':
+                        logger.error(f"      ✓ SBIN, RELIANCE, TCS, INFY, HDFCBANK")
+                
+                logger.error("")
+                logger.error(f"   💡 TIP: Use base symbol (BANKNIFTY) for auto-expiry selection!")
+                logger.error(f"   💡 Check Kite/Zerodha for exact trading symbols")
                 return None
+            
+            # Log how many instruments matched
+            if len(matching_instruments) > 1:
+                logger.info(f"✓ Found {len(matching_instruments)} matching instruments")
+                if not has_numbers:
+                    logger.info(f"   Selecting nearest expiry...")
             
             # Select appropriate instrument
             if self.instrument_type_config == 'EQ':
@@ -307,6 +417,12 @@ class KiteDataFetcher:
                 # For derivatives, sort by expiry and get nearest
                 matching_instruments.sort(key=lambda x: x.get('expiry') or '')
                 selected = matching_instruments[0]
+                
+                # Show what was selected vs what was available
+                if len(matching_instruments) > 1:
+                    logger.info(f"   Available expiries: {', '.join([str(m.get('expiry')) for m in matching_instruments[:5]])}")
+                    if len(matching_instruments) > 5:
+                        logger.info(f"   ... and {len(matching_instruments) - 5} more")
             
             # Set instance variables
             self.instrument_token = str(selected['instrument_token'])
@@ -331,16 +447,20 @@ class KiteDataFetcher:
                 strike = selected.get('strike', 0)
                 self.instrument_name = f"{self.instrument_symbol} {strike} {self.instrument_type_config} {expiry_str}"
             
-            logger.info(f"✓ Selected Instrument: {self.tradingsymbol}")
-            logger.info(f"  Instrument Token: {self.instrument_token}")
-            logger.info(f"  Exchange: {self.exchange_config}")
-            logger.info(f"  Type: {self.instrument_type_config}")
+            # Display selection summary
+            logger.info("="*80)
+            logger.info(f"✅ INSTRUMENT SELECTED: {self.tradingsymbol}")
+            logger.info(f"  📌 Instrument Token: {self.instrument_token}")
+            logger.info(f"  📌 Exchange: {self.exchange_config}")
+            logger.info(f"  📌 Type: {self.instrument_type_config}")
             if selected.get('expiry'):
-                logger.info(f"  Expiry: {selected['expiry']}")
-            if selected.get('strike'):
-                logger.info(f"  Strike: {selected['strike']}")
-            logger.info(f"  Lot Size: {self.lot_size} units per lot")
-            logger.info(f"  Trading: {self.trading_lots} lot(s) = {self.quantity} units")
+                expiry_display = selected['expiry'].strftime('%Y-%m-%d') if hasattr(selected['expiry'], 'strftime') else str(selected['expiry'])
+                logger.info(f"  📅 Expiry: {expiry_display}")
+            if selected.get('strike') and self.instrument_type_config in ['CE', 'PE']:
+                logger.info(f"  🎯 Strike: ₹{selected.get('strike')}")
+            logger.info(f"  📦 Lot Size: {self.lot_size} units per lot")
+            logger.info(f"  💼 Trading: {self.trading_lots} lot(s) × {self.lot_size} units = {self.quantity} total units")
+            logger.info("="*80)
             
             return selected
             

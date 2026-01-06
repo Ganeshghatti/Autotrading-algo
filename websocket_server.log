@@ -520,3 +520,50 @@ kiteconnect.exceptions.TokenException: Incorrect `api_key` or `access_token`.
 2026-01-05 22:20:10,150 - INFO - ⏰ Next candle completes at: 22:25:00
 2026-01-05 22:20:10,150 - INFO - ⏰ Will fetch at: 22:25:10 (+10s delay)
 2026-01-05 22:20:10,150 - INFO - ⏰ Waiting 299 seconds...
+2026-01-05 22:25:10,004 - INFO - 🔄 Reloading configuration from config.json...
+2026-01-05 22:25:10,007 - INFO - 📄 Loaded configuration from config.json:
+2026-01-05 22:25:10,007 - INFO -    Instrument: BANKNIFTY
+2026-01-05 22:25:10,007 - INFO -    Exchange: NFO
+2026-01-05 22:25:10,007 - INFO -    Type: FUT
+2026-01-05 22:25:10,007 - INFO -    Lots: 2
+2026-01-05 22:25:10,007 - INFO -    Target: 100 points
+2026-01-05 22:25:10,007 - INFO -    High-Low Diff: 500 points
+2026-01-05 22:25:10,007 - INFO - 🔄 Starting data fetch at 22:25:10
+2026-01-05 22:25:10,007 - INFO - --------------------------------------------------------------------------------
+2026-01-05 22:25:10,008 - INFO - Starting historical data fetch...
+2026-01-05 22:25:10,008 - INFO - Instrument Token (int): 12601346
+2026-01-05 22:25:10,008 - INFO - Fetching data from last 10 days (up to now)...
+2026-01-05 22:25:10,008 - INFO - From: 2025-12-26 22:25:10
+2026-01-05 22:25:10,008 - INFO - To: 2026-01-05 22:25:10
+2026-01-05 22:25:10,008 - INFO - Interval: 5minute
+2026-01-05 22:25:10,008 - INFO - Calling Kite API for historical data...
+2026-01-05 22:25:10,091 - INFO - ✓ Received 450 candles from API
+2026-01-05 22:25:10,091 - INFO - ℹ️  Excluding current candle (still forming) - using 449 complete candles
+2026-01-05 22:25:10,091 - INFO - Calculating RSI (14-period) on complete candles...
+2026-01-05 22:25:10,095 - INFO - 📊 Latest RSI: 42.65
+2026-01-05 22:25:10,095 - INFO - 📊 Filtered latest 14 candles
+2026-01-05 22:25:10,095 - INFO - 📅 Data range: 2026-01-05 14:15 to 2026-01-05 15:20
+2026-01-05 22:25:10,095 - INFO - Processing candle data with RSI...
+2026-01-05 22:25:10,095 - INFO - 🔍 Checking order conditions...
+2026-01-05 22:25:10,095 - INFO - ℹ️  NO ALERT - No RSI crossover detected
+2026-01-05 22:25:10,095 - INFO -    Previous RSI: 42.65 | Current RSI: 42.65
+2026-01-05 22:25:10,095 - INFO -    RSI between 40-60 (neutral zone)
+2026-01-05 22:25:10,095 - INFO - Saving 14 candles to candles_data.json...
+2026-01-05 22:25:10,097 - INFO - ✓ Successfully saved 14 candles to candles_data.json
+2026-01-05 22:25:10,097 - INFO - File size: 2357 bytes
+2026-01-05 22:25:10,097 - INFO - --------------------------------------------------------------------------------
+2026-01-05 22:25:10,097 - INFO - 📊 LATEST CANDLE SUMMARY:
+2026-01-05 22:25:10,097 - INFO -   🕐 Date: 2026-01-05T15:20:00+05:30
+2026-01-05 22:25:10,097 - INFO -   💹 Open: 60156.2
+2026-01-05 22:25:10,097 - INFO -   ⬆️  High: 60176.6
+2026-01-05 22:25:10,097 - INFO -   ⬇️  Low: 60142.6
+2026-01-05 22:25:10,097 - INFO -   💵 Close: 60149.2
+2026-01-05 22:25:10,097 - INFO -   📦 Volume: 17100
+2026-01-05 22:25:10,097 - INFO -   📈 RSI: 42.65081486254309
+2026-01-05 22:25:10,097 - INFO - --------------------------------------------------------------------------------
+2026-01-05 22:25:10,097 - INFO - ✓ Data fetch complete at 22:25:10
+2026-01-05 22:25:10,097 - INFO - ================================================================================
+2026-01-05 22:25:10,097 - INFO - ⏰ Current time: 22:25:10
+2026-01-05 22:25:10,097 - INFO - ⏰ Next candle completes at: 22:30:00
+2026-01-05 22:25:10,097 - INFO - ⏰ Will fetch at: 22:30:10 (+10s delay)
+2026-01-05 22:25:10,097 - INFO - ⏰ Waiting 299 seconds...
