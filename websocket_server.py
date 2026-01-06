@@ -100,6 +100,7 @@ class KiteDataFetcher:
         self.candles_data_file = "candles_data.json"
         self.trades_file = "trades.json"  # All trades (paper and real) saved here
         self.config_file = "config.json"
+        self.config_last_modified = None  # Track config file modification time
         
         # Trading configuration (from .env)
         self.trading_enabled = os.getenv("TRADING_ENABLED", "paper").lower()  # "real", "paper", or "disabled"
@@ -135,6 +136,9 @@ class KiteDataFetcher:
         """Load trading configuration from config.json"""
         try:
             if os.path.exists(self.config_file):
+                # Track modification time
+                self.config_last_modified = os.path.getmtime(self.config_file)
+                
                 with open(self.config_file, 'r') as f:
                     config = json.load(f)
                     
@@ -179,73 +183,93 @@ class KiteDataFetcher:
             self.lot_size = 15
     
     def reload_config(self):
-        """Reload configuration from config.json (can be called anytime)"""
-        logger.info("🔄 Reloading configuration from config.json...")
-        old_lots = self.trading_lots
-        old_target = self.target_points
-        old_diff = self.high_low_diff
-        old_lot_size = self.lot_size
-        old_symbol = self.instrument_symbol
-        old_exchange = self.exchange_config
-        old_type = self.instrument_type_config
-        
-        self.load_config()
-        self.quantity = self.trading_lots * self.lot_size  # Recalculate quantity
-        
-        # Check if instrument changed
-        instrument_changed = (
-            old_symbol != self.instrument_symbol or 
-            old_exchange != self.exchange_config or 
-            old_type != self.instrument_type_config
-        )
-        
-        # Log changes
-        if old_lots != self.trading_lots:
-            logger.info(f"   ✓ Lots changed: {old_lots} → {self.trading_lots}")
-        if old_lot_size != self.lot_size:
-            logger.info(f"   ✓ Lot Size changed: {old_lot_size} → {self.lot_size}")
-        if old_target != self.target_points:
-            logger.info(f"   ✓ Target changed: {old_target} → {self.target_points}")
-        if old_diff != self.high_low_diff:
-            logger.info(f"   ✓ High-Low Diff changed: {old_diff} → {self.high_low_diff}")
-        
-        # If instrument changed, fetch new details and resubscribe WebSocket
-        if instrument_changed:
-            logger.warning("⚠ INSTRUMENT CHANGED - Fetching new details and resubscribing...")
-            logger.info(f"   Old: {old_symbol} ({old_type}) on {old_exchange}")
-            logger.info(f"   New: {self.instrument_symbol} ({self.instrument_type_config}) on {self.exchange_config}")
+        """Reload configuration from config.json only if file has changed"""
+        try:
+            # Check if config file was modified since last load
+            if not os.path.exists(self.config_file):
+                logger.warning(f"⚠ Config file not found: {self.config_file}")
+                return
             
-            # Unsubscribe from old instrument
-            if self.kws and self.ws_connected and self.instrument_token:
-                try:
-                    logger.info(f"   📴 Unsubscribing from old instrument token: {self.instrument_token}")
-                    self.kws.unsubscribe([int(self.instrument_token)])
-                except Exception as e:
-                    logger.warning(f"   ⚠ Error unsubscribing: {str(e)}")
+            current_mtime = os.path.getmtime(self.config_file)
             
-            # Fetch new instrument details
-            instrument_found = self.get_instrument_details()
+            # If modification time hasn't changed, skip reload
+            if self.config_last_modified and current_mtime == self.config_last_modified:
+                logger.info("✓ Config unchanged, skipping reload")
+                return
             
-            if instrument_found:
-                # Subscribe to new instrument
-                if self.kws and self.ws_connected:
+            # File has changed, reload it
+            logger.info("🔄 Config file changed, reloading configuration...")
+            self.config_last_modified = current_mtime
+            
+            old_lots = self.trading_lots
+            old_target = self.target_points
+            old_diff = self.high_low_diff
+            old_lot_size = self.lot_size
+            old_symbol = self.instrument_symbol
+            old_exchange = self.exchange_config
+            old_type = self.instrument_type_config
+            
+            self.load_config()
+            self.quantity = self.trading_lots * self.lot_size  # Recalculate quantity
+            
+            # Check if instrument changed
+            instrument_changed = (
+                old_symbol != self.instrument_symbol or 
+                old_exchange != self.exchange_config or 
+                old_type != self.instrument_type_config
+            )
+            
+            # Log changes
+            if old_lots != self.trading_lots:
+                logger.info(f"   ✓ Lots changed: {old_lots} → {self.trading_lots}")
+            if old_lot_size != self.lot_size:
+                logger.info(f"   ✓ Lot Size changed: {old_lot_size} → {self.lot_size}")
+            if old_target != self.target_points:
+                logger.info(f"   ✓ Target changed: {old_target} → {self.target_points}")
+            if old_diff != self.high_low_diff:
+                logger.info(f"   ✓ High-Low Diff changed: {old_diff} → {self.high_low_diff}")
+            
+            # If instrument changed, fetch new details and resubscribe WebSocket
+            if instrument_changed:
+                logger.warning("⚠ INSTRUMENT CHANGED - Fetching new details and resubscribing...")
+                logger.info(f"   Old: {old_symbol} ({old_type}) on {old_exchange}")
+                logger.info(f"   New: {self.instrument_symbol} ({self.instrument_type_config}) on {self.exchange_config}")
+                
+                # Unsubscribe from old instrument
+                if self.kws and self.ws_connected and self.instrument_token:
                     try:
-                        logger.info(f"   📡 Subscribing to new instrument token: {self.instrument_token}")
-                        self.kws.subscribe([int(self.instrument_token)])
-                        self.kws.set_mode(self.kws.MODE_FULL, [int(self.instrument_token)])
-                        logger.info("   ✅ Successfully subscribed to new instrument!")
+                        logger.info(f"   📴 Unsubscribing from old instrument token: {self.instrument_token}")
+                        self.kws.unsubscribe([int(self.instrument_token)])
                     except Exception as e:
-                        logger.error(f"   ✗ Error subscribing to new instrument: {str(e)}")
+                        logger.warning(f"   ⚠ Error unsubscribing: {str(e)}")
+                
+                # Fetch new instrument details
+                instrument_found = self.get_instrument_details()
+                
+                if instrument_found:
+                    # Subscribe to new instrument
+                    if self.kws and self.ws_connected:
+                        try:
+                            logger.info(f"   📡 Subscribing to new instrument token: {self.instrument_token}")
+                            self.kws.subscribe([int(self.instrument_token)])
+                            self.kws.set_mode(self.kws.MODE_FULL, [int(self.instrument_token)])
+                            logger.info("   ✅ Successfully subscribed to new instrument!")
+                        except Exception as e:
+                            logger.error(f"   ✗ Error subscribing to new instrument: {str(e)}")
+                    else:
+                        logger.warning("   ⚠ WebSocket not connected - will subscribe on next connection")
                 else:
-                    logger.warning("   ⚠ WebSocket not connected - will subscribe on next connection")
-            else:
-                logger.error("   ✗ Failed to fetch new instrument details!")
-            
-            # Clear trading state when instrument changes
-            self.alert_candle = None
-            self.open_trade = None
-            self.first_candle_time = None
-            logger.info("   🧹 Cleared trading state (alerts, open trades)")
+                    logger.error("   ✗ Failed to fetch new instrument details!")
+                
+                # Clear trading state when instrument changes
+                self.alert_candle = None
+                self.open_trade = None
+                self.first_candle_time = None
+                logger.info("   🧹 Cleared trading state (alerts, open trades)")
+        
+        except Exception as e:
+            logger.error(f"✗ Error reloading config: {str(e)}")
+            logger.error("   Continuing with existing configuration")
     
     def validate_symbol_format(self):
         """Validate and provide hints about symbol format"""
@@ -1383,11 +1407,13 @@ class KiteDataFetcher:
                 connection_success = self.connect_to_kite()
                 continue
             
-            # Reload config before each fetch to pick up any changes
-            self.reload_config()
+            # ========================================================================
+            # FETCH AT EXACT 5-MINUTE INTERVAL (e.g., 9:20:10, 9:25:10, etc.)
+            # Config reload happens AFTER fetch to maintain precise timing
+            # ========================================================================
             
-            # Fetch historical data at aligned 5-minute interval
-            logger.info(f"🔄 Starting data fetch at {datetime.now().strftime('%H:%M:%S')}")
+            fetch_start_time = datetime.now()
+            logger.info(f"🔄 Starting data fetch at {fetch_start_time.strftime('%H:%M:%S.%f')[:-3]}")
             fetch_success = self.fetch_historical_data()
             
             if not fetch_success:
@@ -1396,10 +1422,18 @@ class KiteDataFetcher:
                 connection_success = False
                 continue
             
-            logger.info(f"✓ Data fetch complete at {datetime.now().strftime('%H:%M:%S')}")
+            fetch_end_time = datetime.now()
+            fetch_duration = (fetch_end_time - fetch_start_time).total_seconds()
+            logger.info(f"✓ Data fetch complete at {fetch_end_time.strftime('%H:%M:%S.%f')[:-3]} (took {fetch_duration:.2f}s)")
             logger.info("="*80)
             
-            # Wait until next 5-minute interval (e.g., 9:15, 9:20, 9:25, etc.)
+            # Reload config AFTER fetch (during wait period)
+            # This keeps fetch timing precise and doesn't interfere with 5-min schedule
+            logger.info("🔄 Reloading configuration (if changed)...")
+            self.reload_config()
+            
+            # Calculate wait time to next 5-minute interval
+            # This ensures next fetch happens at exactly X:X0:10, X:X5:10, etc.
             wait_time = self.calculate_next_5min_interval()
             time.sleep(wait_time)
 
