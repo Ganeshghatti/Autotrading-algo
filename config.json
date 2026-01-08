@@ -2,8 +2,8 @@
     "instrument_symbol": "BANKNIFTY",
     "exchange": "NFO",
     "instrument_type": "FUT",
-    "high_low_diff": "500",
+    "high_low_diff": "35",
     "target": "100",
-    "lots": "2",
-    "lot_size": "15"
+    "lots": "1",
+    "lot_size": "30"
 }

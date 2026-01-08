@@ -1,569 +1,112 @@
-2026-01-05 22:09:46,479 - INFO - ================================================================================
-2026-01-05 22:09:46,479 - INFO - Initializing Kite Data Fetcher Server
-2026-01-05 22:09:46,479 - INFO - ================================================================================
-2026-01-05 22:09:46,479 - INFO - Loading environment variables from .env file
-2026-01-05 22:09:46,480 - INFO - API_KEY loaded: 5qn3evgs...
-2026-01-05 22:09:46,480 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:09:46,480 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:09:46,480 - INFO -    Exchange: NFO
-2026-01-05 22:09:46,480 - INFO -    Type: FUT
-2026-01-05 22:09:46,480 - INFO -    Lots: 2
-2026-01-05 22:09:46,480 - INFO -    Target: 100 points
-2026-01-05 22:09:46,480 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:09:46,480 - INFO - 📊 Trading Mode: PAPER
-2026-01-05 22:09:46,480 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-05 22:09:46,480 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-05 22:09:46,480 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-05 22:09:46,480 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-05 22:09:46,480 - INFO - 📁 Trades Log File: trades.json
-2026-01-05 22:09:46,480 - INFO - 📧 Email Notifications: Enabled
-2026-01-05 22:09:46,480 - INFO - ================================================================================
-2026-01-05 22:09:46,480 - INFO - ================================================================================
-2026-01-05 22:09:46,480 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-05 22:09:46,480 - INFO - ================================================================================
-2026-01-05 22:09:46,480 - INFO - Attempting to connect to Kite API...
-2026-01-05 22:09:46,480 - INFO - Reading access token from file: access_token.txt
-2026-01-05 22:09:46,480 - INFO - Access token loaded: Noam5G4byA...
-2026-01-05 22:09:46,480 - INFO - Initializing KiteConnect instance
-2026-01-05 22:09:46,480 - INFO - Setting access token
-2026-01-05 22:09:46,480 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
-2026-01-05 22:09:47,557 - WARNING - ⚠ API lot size (30) differs from config (15)
-2026-01-05 22:09:47,557 - WARNING -    Using config value: 15
-2026-01-05 22:09:47,557 - INFO - ✓ Selected Instrument: BANKNIFTY26JANFUT
-2026-01-05 22:09:47,557 - INFO -   Instrument Token: 12601346
-2026-01-05 22:09:47,557 - INFO -   Exchange: NFO
-2026-01-05 22:09:47,557 - INFO -   Type: FUT
-2026-01-05 22:09:47,557 - INFO -   Expiry: 2026-01-27
-2026-01-05 22:09:47,557 - INFO -   Lot Size: 15 units per lot
-2026-01-05 22:09:47,557 - INFO -   Trading: 2 lot(s) = 30 units
-2026-01-05 22:09:47,560 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-05 22:09:47,930 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:09:47,930 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:09:49,566 - INFO - ✓ WebSocket setup complete
-2026-01-05 22:09:49,566 - INFO - ✓ Kite API connection established successfully
-2026-01-05 22:09:49,566 - INFO - ⏰ Current time: 22:09:49
-2026-01-05 22:09:49,566 - INFO - ⏰ Next candle completes at: 22:10:00
-2026-01-05 22:09:49,566 - INFO - ⏰ Will fetch at: 22:10:10 (+10s delay)
-2026-01-05 22:09:49,566 - INFO - ⏰ Waiting 20 seconds...
-2026-01-05 22:09:49,567 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-05 22:09:51,075 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:09:51,075 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:01,027 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:01,027 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:10,001 - INFO - 🔄 Reloading configuration from config.json...
-2026-01-05 22:10:10,003 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:10:10,003 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:10:10,003 - INFO -    Exchange: NFO
-2026-01-05 22:10:10,003 - INFO -    Type: FUT
-2026-01-05 22:10:10,003 - INFO -    Lots: 2
-2026-01-05 22:10:10,003 - INFO -    Target: 100 points
-2026-01-05 22:10:10,004 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:10:10,004 - INFO - 🔄 Starting data fetch at 22:10:10
-2026-01-05 22:10:10,004 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:10:10,004 - INFO - Starting historical data fetch...
-2026-01-05 22:10:10,004 - INFO - Instrument Token (int): 12601346
-2026-01-05 22:10:10,004 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-05 22:10:10,004 - INFO - From: 2025-12-26 22:10:10
-2026-01-05 22:10:10,004 - INFO - To: 2026-01-05 22:10:10
-2026-01-05 22:10:10,004 - INFO - Interval: 5minute
-2026-01-05 22:10:10,004 - INFO - Calling Kite API for historical data...
-2026-01-05 22:10:10,066 - ERROR - ✗ Error fetching historical data: Incorrect `api_key` or `access_token`.
-2026-01-05 22:10:10,066 - ERROR - Error type: TokenException
-2026-01-05 22:10:10,069 - ERROR - Traceback: Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1089, in fetch_historical_data
-    historical_data = self.kite.historical_data(
-        instrument_token=instrument_token,
-    ...<2 lines>...
-        interval="5minute"
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.13/site-packages/kiteconnect/connect.py", line 632, in historical_data
-    data = self._get("market.historical",
-                     url_args={"instrument_token": instrument_token, "interval": interval},
-    ...<5 lines>...
-                         "oi": 1 if oi else 0
-                     })
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.13/site-packages/kiteconnect/connect.py", line 861, in _get
-    return self._request(route, "GET", url_args=url_args, params=params, is_json=is_json)
-           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.13/site-packages/kiteconnect/connect.py", line 937, in _request
-    raise exp(data["message"], code=r.status_code)
-kiteconnect.exceptions.TokenException: Incorrect `api_key` or `access_token`.
-
-2026-01-05 22:10:10,070 - WARNING - ⚠ Data fetch failed. Connection might be lost.
-2026-01-05 22:10:10,070 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-05 22:10:23,775 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:23,775 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:40,289 - INFO - 
+2026-01-08 12:21:48,942 - INFO - ================================================================================
+2026-01-08 12:21:48,943 - INFO - Initializing Kite Data Fetcher Server
+2026-01-08 12:21:48,943 - INFO - ================================================================================
+2026-01-08 12:21:48,943 - INFO - Loading environment variables from .env file
+2026-01-08 12:21:48,943 - INFO - API_KEY loaded: lo8381a8...
+2026-01-08 12:21:48,943 - INFO - 📄 Loaded configuration from config.json:
+2026-01-08 12:21:48,943 - INFO -    Instrument: BANKNIFTY
+2026-01-08 12:21:48,943 - INFO -    Exchange: NFO
+2026-01-08 12:21:48,943 - INFO -    Type: FUT
+2026-01-08 12:21:48,943 - INFO -    Lots: 2
+2026-01-08 12:21:48,943 - INFO -    Target: 100 points
+2026-01-08 12:21:48,943 - INFO -    High-Low Diff: 500 points
+2026-01-08 12:21:48,944 - INFO - 📊 Trading Mode: PAPER
+2026-01-08 12:21:48,944 - INFO - 📦 Trade Quantity: 2 lot(s)
+2026-01-08 12:21:48,944 - INFO - 🔄 Retry Interval: 300 seconds
+2026-01-08 12:21:48,944 - INFO - ⏱️ Fetch Interval: 300 seconds (5-min aligned + 10s delay)
+2026-01-08 12:21:48,944 - INFO - 📁 Candles Data File: candles_data.json
+2026-01-08 12:21:48,944 - INFO - 📁 Trades Log File: trades.json
+2026-01-08 12:21:48,944 - INFO - 📧 Email Notifications: Enabled
+2026-01-08 12:21:48,944 - INFO - ================================================================================
+2026-01-08 12:21:48,944 - INFO - ================================================================================
+2026-01-08 12:21:48,944 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
+2026-01-08 12:21:48,944 - INFO - ================================================================================
+2026-01-08 12:21:48,944 - INFO - Attempting to connect to Kite API...
+2026-01-08 12:21:48,944 - INFO - Reading access token from file: access_token.txt
+2026-01-08 12:21:48,944 - INFO - Access token loaded: QF9l6i7per...
+2026-01-08 12:21:48,944 - INFO - Initializing KiteConnect instance
+2026-01-08 12:21:48,944 - INFO - Setting access token
+2026-01-08 12:21:48,944 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
+2026-01-08 12:21:48,944 - INFO - ℹ️  Base symbol detected: 'BANKNIFTY'
+2026-01-08 12:21:48,944 - INFO -    System will auto-select nearest FUT expiry
+2026-01-08 12:21:49,790 - INFO - ✓ Found 3 matching instruments
+2026-01-08 12:21:49,790 - INFO -    Selecting nearest expiry...
+2026-01-08 12:21:49,790 - INFO -    Available expiries: 2026-01-27, 2026-02-24, 2026-03-30
+2026-01-08 12:21:49,790 - WARNING - ⚠ API lot size (30) differs from config (15)
+2026-01-08 12:21:49,790 - WARNING -    Using config value: 15
+2026-01-08 12:21:49,790 - INFO - ================================================================================
+2026-01-08 12:21:49,790 - INFO - ✅ INSTRUMENT SELECTED: BANKNIFTY26JANFUT
+2026-01-08 12:21:49,790 - INFO -   📌 Instrument Token: 12601346
+2026-01-08 12:21:49,790 - INFO -   📌 Exchange: NFO
+2026-01-08 12:21:49,790 - INFO -   📌 Type: FUT
+2026-01-08 12:21:49,790 - INFO -   📅 Expiry: 2026-01-27
+2026-01-08 12:21:49,790 - INFO -   📦 Lot Size: 15 units per lot
+2026-01-08 12:21:49,790 - INFO -   💼 Trading: 2 lot(s) × 15 units = 30 total units
+2026-01-08 12:21:49,791 - INFO - ================================================================================
+2026-01-08 12:21:49,794 - INFO - 🔌 Setting up WebSocket connection...
+2026-01-08 12:21:50,082 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
+2026-01-08 12:21:50,082 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
+2026-01-08 12:21:51,799 - INFO - ✓ WebSocket setup complete
+2026-01-08 12:21:51,800 - INFO - ✓ Kite API connection established successfully
+2026-01-08 12:21:51,800 - INFO - ⏰ Current time: 12:21:51
+2026-01-08 12:21:51,800 - INFO - ⏰ Next candle completes at: 12:25:00
+2026-01-08 12:21:51,800 - INFO - ⏰ Will fetch at: 12:25:10 (+10s delay)
+2026-01-08 12:21:51,800 - INFO - ⏰ Waiting 198 seconds...
+2026-01-08 12:21:51,801 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
+2026-01-08 12:21:53,308 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
+2026-01-08 12:21:53,308 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
+2026-01-08 12:22:01,397 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
+2026-01-08 12:22:01,399 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
+2026-01-08 12:22:04,790 - INFO - 
 ================================================================================
-2026-01-05 22:10:40,289 - INFO - Server stopped by user (Ctrl+C)
-2026-01-05 22:10:40,289 - INFO - ================================================================================
-2026-01-05 22:10:42,520 - INFO - ================================================================================
-2026-01-05 22:10:42,520 - INFO - Initializing Kite Data Fetcher Server
-2026-01-05 22:10:42,520 - INFO - ================================================================================
-2026-01-05 22:10:42,520 - INFO - Loading environment variables from .env file
-2026-01-05 22:10:42,521 - INFO - API_KEY loaded: 5qn3evgs...
-2026-01-05 22:10:42,521 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:10:42,521 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:10:42,521 - INFO -    Exchange: NFO
-2026-01-05 22:10:42,521 - INFO -    Type: FUT
-2026-01-05 22:10:42,521 - INFO -    Lots: 2
-2026-01-05 22:10:42,521 - INFO -    Target: 100 points
-2026-01-05 22:10:42,521 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:10:42,521 - INFO - 📊 Trading Mode: PAPER
-2026-01-05 22:10:42,521 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-05 22:10:42,521 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-05 22:10:42,521 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-05 22:10:42,521 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-05 22:10:42,521 - INFO - 📁 Trades Log File: trades.json
-2026-01-05 22:10:42,521 - INFO - 📧 Email Notifications: Enabled
-2026-01-05 22:10:42,521 - INFO - ================================================================================
-2026-01-05 22:10:42,521 - INFO - ================================================================================
-2026-01-05 22:10:42,522 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-05 22:10:42,522 - INFO - ================================================================================
-2026-01-05 22:10:42,522 - INFO - Attempting to connect to Kite API...
-2026-01-05 22:10:42,522 - INFO - Reading access token from file: access_token.txt
-2026-01-05 22:10:42,522 - INFO - Access token loaded: syiwrNxjtr...
-2026-01-05 22:10:42,522 - INFO - Initializing KiteConnect instance
-2026-01-05 22:10:42,522 - INFO - Setting access token
-2026-01-05 22:10:42,522 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
-2026-01-05 22:10:43,236 - WARNING - ⚠ API lot size (30) differs from config (15)
-2026-01-05 22:10:43,236 - WARNING -    Using config value: 15
-2026-01-05 22:10:43,236 - INFO - ✓ Selected Instrument: BANKNIFTY26JANFUT
-2026-01-05 22:10:43,236 - INFO -   Instrument Token: 12601346
-2026-01-05 22:10:43,236 - INFO -   Exchange: NFO
-2026-01-05 22:10:43,236 - INFO -   Type: FUT
-2026-01-05 22:10:43,236 - INFO -   Expiry: 2026-01-27
-2026-01-05 22:10:43,236 - INFO -   Lot Size: 15 units per lot
-2026-01-05 22:10:43,236 - INFO -   Trading: 2 lot(s) = 30 units
-2026-01-05 22:10:43,240 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-05 22:10:43,364 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:43,364 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:45,245 - INFO - ✓ WebSocket setup complete
-2026-01-05 22:10:45,245 - INFO - ✓ Kite API connection established successfully
-2026-01-05 22:10:45,245 - INFO - ⏰ Current time: 22:10:45
-2026-01-05 22:10:45,246 - INFO - ⏰ Next candle completes at: 22:15:00
-2026-01-05 22:10:45,246 - INFO - ⏰ Will fetch at: 22:15:10 (+10s delay)
-2026-01-05 22:10:45,246 - INFO - ⏰ Waiting 264 seconds...
-2026-01-05 22:10:45,246 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-05 22:10:47,107 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:47,107 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:58,407 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:10:58,407 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:21,225 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:21,226 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:26,259 - INFO - 
-================================================================================
-2026-01-05 22:11:26,260 - INFO - Server stopped by user (Ctrl+C)
-2026-01-05 22:11:26,260 - INFO - ================================================================================
-2026-01-05 22:11:28,161 - INFO - ================================================================================
-2026-01-05 22:11:28,161 - INFO - Initializing Kite Data Fetcher Server
-2026-01-05 22:11:28,161 - INFO - ================================================================================
-2026-01-05 22:11:28,161 - INFO - Loading environment variables from .env file
-2026-01-05 22:11:28,162 - INFO - API_KEY loaded: 5qn3evgs...
-2026-01-05 22:11:28,162 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:11:28,162 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:11:28,162 - INFO -    Exchange: NFO
-2026-01-05 22:11:28,162 - INFO -    Type: FUT
-2026-01-05 22:11:28,162 - INFO -    Lots: 2
-2026-01-05 22:11:28,162 - INFO -    Target: 100 points
-2026-01-05 22:11:28,162 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:11:28,162 - INFO - 📊 Trading Mode: PAPER
-2026-01-05 22:11:28,162 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-05 22:11:28,162 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-05 22:11:28,162 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-05 22:11:28,162 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-05 22:11:28,162 - INFO - 📁 Trades Log File: trades.json
-2026-01-05 22:11:28,162 - INFO - 📧 Email Notifications: Enabled
-2026-01-05 22:11:28,162 - INFO - ================================================================================
-2026-01-05 22:11:28,162 - INFO - ================================================================================
-2026-01-05 22:11:28,162 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-05 22:11:28,162 - INFO - ================================================================================
-2026-01-05 22:11:28,162 - INFO - Attempting to connect to Kite API...
-2026-01-05 22:11:28,162 - INFO - Reading access token from file: access_token.txt
-2026-01-05 22:11:28,162 - INFO - Access token loaded: syiwrNxjtr...
-2026-01-05 22:11:28,162 - INFO - Initializing KiteConnect instance
-2026-01-05 22:11:28,162 - INFO - Setting access token
-2026-01-05 22:11:28,162 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
-2026-01-05 22:11:28,885 - WARNING - ⚠ API lot size (30) differs from config (15)
-2026-01-05 22:11:28,885 - WARNING -    Using config value: 15
-2026-01-05 22:11:28,885 - INFO - ✓ Selected Instrument: BANKNIFTY26JANFUT
-2026-01-05 22:11:28,885 - INFO -   Instrument Token: 12601346
-2026-01-05 22:11:28,885 - INFO -   Exchange: NFO
-2026-01-05 22:11:28,885 - INFO -   Type: FUT
-2026-01-05 22:11:28,886 - INFO -   Expiry: 2026-01-27
-2026-01-05 22:11:28,886 - INFO -   Lot Size: 15 units per lot
-2026-01-05 22:11:28,886 - INFO -   Trading: 2 lot(s) = 30 units
-2026-01-05 22:11:28,889 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-05 22:11:29,568 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:29,568 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:30,894 - INFO - ✓ WebSocket setup complete
-2026-01-05 22:11:30,894 - INFO - ✓ Kite API connection established successfully
-2026-01-05 22:11:30,894 - INFO - ⏰ Current time: 22:11:30
-2026-01-05 22:11:30,894 - INFO - ⏰ Next candle completes at: 22:15:00
-2026-01-05 22:11:30,894 - INFO - ⏰ Will fetch at: 22:15:10 (+10s delay)
-2026-01-05 22:11:30,894 - INFO - ⏰ Waiting 219 seconds...
-2026-01-05 22:11:30,894 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-05 22:11:35,577 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:35,577 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:42,990 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:11:42,990 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:12:03,156 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:12:03,156 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:12:51,691 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:12:51,692 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:13:58,971 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:13:58,971 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:15:02,322 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:15:02,322 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:15:10,004 - INFO - 🔄 Reloading configuration from config.json...
-2026-01-05 22:15:10,005 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:15:10,005 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:15:10,005 - INFO -    Exchange: NFO
-2026-01-05 22:15:10,005 - INFO -    Type: FUT
-2026-01-05 22:15:10,005 - INFO -    Lots: 2
-2026-01-05 22:15:10,005 - INFO -    Target: 100 points
-2026-01-05 22:15:10,005 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:15:10,005 - INFO - 🔄 Starting data fetch at 22:15:10
-2026-01-05 22:15:10,005 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:15:10,005 - INFO - Starting historical data fetch...
-2026-01-05 22:15:10,005 - INFO - Instrument Token (int): 12601346
-2026-01-05 22:15:10,005 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-05 22:15:10,005 - INFO - From: 2025-12-26 22:15:10
-2026-01-05 22:15:10,005 - INFO - To: 2026-01-05 22:15:10
-2026-01-05 22:15:10,005 - INFO - Interval: 5minute
-2026-01-05 22:15:10,005 - INFO - Calling Kite API for historical data...
-2026-01-05 22:15:10,060 - ERROR - ✗ Error fetching historical data: Incorrect `api_key` or `access_token`.
-2026-01-05 22:15:10,061 - ERROR - Error type: TokenException
-2026-01-05 22:15:10,064 - ERROR - Traceback: Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1089, in fetch_historical_data
-    elif alert['type'] == 'SELL':
-                          ^^^^^^^
-    ...<4 lines>...
-            logger.info(f"   WebSocket LTP: ₹{ltp:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
-    
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.13/site-packages/kiteconnect/connect.py", line 632, in historical_data
-    data = self._get("market.historical",
-                     url_args={"instrument_token": instrument_token, "interval": interval},
-    ...<5 lines>...
-                         "oi": 1 if oi else 0
-                     })
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.13/site-packages/kiteconnect/connect.py", line 861, in _get
-    return self._request(route, "GET", url_args=url_args, params=params, is_json=is_json)
-           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.13/site-packages/kiteconnect/connect.py", line 937, in _request
-    raise exp(data["message"], code=r.status_code)
-kiteconnect.exceptions.TokenException: Incorrect `api_key` or `access_token`.
-
-2026-01-05 22:15:10,064 - WARNING - ⚠ Data fetch failed. Connection might be lost.
-2026-01-05 22:15:10,064 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-05 22:15:55,163 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:15:55,163 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:19,567 - INFO - 
-================================================================================
-2026-01-05 22:16:19,567 - INFO - Server stopped by user (Ctrl+C)
-2026-01-05 22:16:19,567 - INFO - ================================================================================
-2026-01-05 22:16:20,598 - INFO - ================================================================================
-2026-01-05 22:16:20,598 - INFO - Initializing Kite Data Fetcher Server
-2026-01-05 22:16:20,598 - INFO - ================================================================================
-2026-01-05 22:16:20,598 - INFO - Loading environment variables from .env file
-2026-01-05 22:16:20,598 - INFO - API_KEY loaded: 5qn3evgs...
-2026-01-05 22:16:20,598 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:16:20,598 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:16:20,598 - INFO -    Exchange: NFO
-2026-01-05 22:16:20,598 - INFO -    Type: FUT
-2026-01-05 22:16:20,598 - INFO -    Lots: 2
-2026-01-05 22:16:20,598 - INFO -    Target: 100 points
-2026-01-05 22:16:20,599 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:16:20,599 - INFO - 📊 Trading Mode: PAPER
-2026-01-05 22:16:20,599 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-05 22:16:20,599 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-05 22:16:20,599 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-05 22:16:20,599 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-05 22:16:20,599 - INFO - 📁 Trades Log File: trades.json
-2026-01-05 22:16:20,599 - INFO - 📧 Email Notifications: Enabled
-2026-01-05 22:16:20,599 - INFO - ================================================================================
-2026-01-05 22:16:20,599 - INFO - ================================================================================
-2026-01-05 22:16:20,599 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-05 22:16:20,599 - INFO - ================================================================================
-2026-01-05 22:16:20,599 - INFO - Attempting to connect to Kite API...
-2026-01-05 22:16:20,599 - INFO - Reading access token from file: access_token.txt
-2026-01-05 22:16:20,599 - INFO - Access token loaded: syiwrNxjtr...
-2026-01-05 22:16:20,599 - INFO - Initializing KiteConnect instance
-2026-01-05 22:16:20,599 - INFO - Setting access token
-2026-01-05 22:16:20,599 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
-2026-01-05 22:16:21,487 - WARNING - ⚠ API lot size (30) differs from config (15)
-2026-01-05 22:16:21,487 - WARNING -    Using config value: 15
-2026-01-05 22:16:21,487 - INFO - ✓ Selected Instrument: BANKNIFTY26JANFUT
-2026-01-05 22:16:21,487 - INFO -   Instrument Token: 12601346
-2026-01-05 22:16:21,487 - INFO -   Exchange: NFO
-2026-01-05 22:16:21,487 - INFO -   Type: FUT
-2026-01-05 22:16:21,487 - INFO -   Expiry: 2026-01-27
-2026-01-05 22:16:21,487 - INFO -   Lot Size: 15 units per lot
-2026-01-05 22:16:21,487 - INFO -   Trading: 2 lot(s) = 30 units
-2026-01-05 22:16:21,490 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-05 22:16:21,632 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:21,632 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:23,490 - INFO - ✓ WebSocket setup complete
-2026-01-05 22:16:23,491 - INFO - ✓ Kite API connection established successfully
-2026-01-05 22:16:23,491 - INFO - ⏰ Current time: 22:16:23
-2026-01-05 22:16:23,491 - INFO - ⏰ Next candle completes at: 22:20:00
-2026-01-05 22:16:23,491 - INFO - ⏰ Will fetch at: 22:20:10 (+10s delay)
-2026-01-05 22:16:23,491 - INFO - ⏰ Waiting 226 seconds...
-2026-01-05 22:16:23,491 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-05 22:16:24,583 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:24,583 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:33,255 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:33,255 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:52,227 - ERROR - ✗ WebSocket error: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:16:52,227 - WARNING - ⚠ WebSocket closed: 1006 - connection was closed uncleanly (WebSocket connection upgrade failed (403 - Forbidden))
-2026-01-05 22:17:04,232 - INFO - 
-================================================================================
-2026-01-05 22:17:04,232 - INFO - Server stopped by user (Ctrl+C)
-2026-01-05 22:17:04,233 - INFO - ================================================================================
-2026-01-05 22:17:05,469 - INFO - ================================================================================
-2026-01-05 22:17:05,469 - INFO - Initializing Kite Data Fetcher Server
-2026-01-05 22:17:05,469 - INFO - ================================================================================
-2026-01-05 22:17:05,469 - INFO - Loading environment variables from .env file
-2026-01-05 22:17:05,469 - INFO - API_KEY loaded: lo8381a8...
-2026-01-05 22:17:05,469 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:17:05,469 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:17:05,469 - INFO -    Exchange: NFO
-2026-01-05 22:17:05,469 - INFO -    Type: FUT
-2026-01-05 22:17:05,469 - INFO -    Lots: 2
-2026-01-05 22:17:05,469 - INFO -    Target: 100 points
-2026-01-05 22:17:05,469 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:17:05,469 - INFO - 📊 Trading Mode: PAPER
-2026-01-05 22:17:05,469 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-05 22:17:05,469 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-05 22:17:05,469 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-05 22:17:05,469 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-05 22:17:05,470 - INFO - 📁 Trades Log File: trades.json
-2026-01-05 22:17:05,470 - INFO - 📧 Email Notifications: Enabled
-2026-01-05 22:17:05,470 - INFO - ================================================================================
-2026-01-05 22:17:05,470 - INFO - ================================================================================
-2026-01-05 22:17:05,470 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-05 22:17:05,470 - INFO - ================================================================================
-2026-01-05 22:17:05,470 - INFO - Attempting to connect to Kite API...
-2026-01-05 22:17:05,470 - INFO - Reading access token from file: access_token.txt
-2026-01-05 22:17:05,470 - INFO - Access token loaded: syiwrNxjtr...
-2026-01-05 22:17:05,470 - INFO - Initializing KiteConnect instance
-2026-01-05 22:17:05,470 - INFO - Setting access token
-2026-01-05 22:17:05,470 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
-2026-01-05 22:17:06,086 - WARNING - ⚠ API lot size (30) differs from config (15)
-2026-01-05 22:17:06,086 - WARNING -    Using config value: 15
-2026-01-05 22:17:06,086 - INFO - ✓ Selected Instrument: BANKNIFTY26JANFUT
-2026-01-05 22:17:06,086 - INFO -   Instrument Token: 12601346
-2026-01-05 22:17:06,086 - INFO -   Exchange: NFO
-2026-01-05 22:17:06,086 - INFO -   Type: FUT
-2026-01-05 22:17:06,086 - INFO -   Expiry: 2026-01-27
-2026-01-05 22:17:06,086 - INFO -   Lot Size: 15 units per lot
-2026-01-05 22:17:06,086 - INFO -   Trading: 2 lot(s) = 30 units
-2026-01-05 22:17:06,090 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-05 22:17:06,213 - INFO - ✓ WebSocket connected successfully
-2026-01-05 22:17:06,213 - INFO - 📡 Subscribed to BANKNIFTY26JANFUT (12601346)
-2026-01-05 22:17:06,213 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-05 22:17:08,095 - INFO - ✓ WebSocket setup complete
-2026-01-05 22:17:08,095 - INFO - ✓ Kite API connection established successfully
-2026-01-05 22:17:08,096 - INFO - ⏰ Current time: 22:17:08
-2026-01-05 22:17:08,096 - INFO - ⏰ Next candle completes at: 22:20:00
-2026-01-05 22:17:08,096 - INFO - ⏰ Will fetch at: 22:20:10 (+10s delay)
-2026-01-05 22:17:08,096 - INFO - ⏰ Waiting 181 seconds...
-2026-01-05 22:17:08,096 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-05 22:17:16,936 - INFO - 
-================================================================================
-2026-01-05 22:17:16,936 - INFO - Server stopped by user (Ctrl+C)
-2026-01-05 22:17:16,936 - INFO - ================================================================================
-2026-01-05 22:17:18,396 - INFO - ================================================================================
-2026-01-05 22:17:18,396 - INFO - Initializing Kite Data Fetcher Server
-2026-01-05 22:17:18,396 - INFO - ================================================================================
-2026-01-05 22:17:18,396 - INFO - Loading environment variables from .env file
-2026-01-05 22:17:18,396 - INFO - API_KEY loaded: lo8381a8...
-2026-01-05 22:17:18,396 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:17:18,396 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:17:18,396 - INFO -    Exchange: NFO
-2026-01-05 22:17:18,396 - INFO -    Type: FUT
-2026-01-05 22:17:18,396 - INFO -    Lots: 2
-2026-01-05 22:17:18,396 - INFO -    Target: 100 points
-2026-01-05 22:17:18,396 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:17:18,396 - INFO - 📊 Trading Mode: PAPER
-2026-01-05 22:17:18,396 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-05 22:17:18,396 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-05 22:17:18,396 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-05 22:17:18,396 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-05 22:17:18,396 - INFO - 📁 Trades Log File: trades.json
-2026-01-05 22:17:18,396 - INFO - 📧 Email Notifications: Enabled
-2026-01-05 22:17:18,396 - INFO - ================================================================================
-2026-01-05 22:17:18,396 - INFO - ================================================================================
-2026-01-05 22:17:18,396 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-05 22:17:18,396 - INFO - ================================================================================
-2026-01-05 22:17:18,396 - INFO - Attempting to connect to Kite API...
-2026-01-05 22:17:18,396 - INFO - Reading access token from file: access_token.txt
-2026-01-05 22:17:18,396 - INFO - Access token loaded: syiwrNxjtr...
-2026-01-05 22:17:18,396 - INFO - Initializing KiteConnect instance
-2026-01-05 22:17:18,396 - INFO - Setting access token
-2026-01-05 22:17:18,396 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
-2026-01-05 22:17:19,983 - WARNING - ⚠ API lot size (30) differs from config (15)
-2026-01-05 22:17:19,983 - WARNING -    Using config value: 15
-2026-01-05 22:17:19,983 - INFO - ✓ Selected Instrument: BANKNIFTY26JANFUT
-2026-01-05 22:17:19,983 - INFO -   Instrument Token: 12601346
-2026-01-05 22:17:19,983 - INFO -   Exchange: NFO
-2026-01-05 22:17:19,983 - INFO -   Type: FUT
-2026-01-05 22:17:19,983 - INFO -   Expiry: 2026-01-27
-2026-01-05 22:17:19,983 - INFO -   Lot Size: 15 units per lot
-2026-01-05 22:17:19,983 - INFO -   Trading: 2 lot(s) = 30 units
-2026-01-05 22:17:19,986 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-05 22:17:20,337 - INFO - ✓ WebSocket connected successfully
-2026-01-05 22:17:20,338 - INFO - 📡 Subscribed to BANKNIFTY26JANFUT (12601346)
-2026-01-05 22:17:20,338 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-05 22:17:21,992 - INFO - ✓ WebSocket setup complete
-2026-01-05 22:17:21,992 - INFO - ✓ Kite API connection established successfully
-2026-01-05 22:17:21,992 - INFO - ⏰ Current time: 22:17:21
-2026-01-05 22:17:21,992 - INFO - ⏰ Next candle completes at: 22:20:00
-2026-01-05 22:17:21,992 - INFO - ⏰ Will fetch at: 22:20:10 (+10s delay)
-2026-01-05 22:17:21,992 - INFO - ⏰ Waiting 168 seconds...
-2026-01-05 22:17:21,992 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-05 22:17:37,058 - INFO - 
-================================================================================
-2026-01-05 22:17:37,058 - INFO - Server stopped by user (Ctrl+C)
-2026-01-05 22:17:37,058 - INFO - ================================================================================
-2026-01-05 22:17:42,757 - INFO - ================================================================================
-2026-01-05 22:17:42,757 - INFO - Initializing Kite Data Fetcher Server
-2026-01-05 22:17:42,757 - INFO - ================================================================================
-2026-01-05 22:17:42,757 - INFO - Loading environment variables from .env file
-2026-01-05 22:17:42,758 - INFO - API_KEY loaded: lo8381a8...
-2026-01-05 22:17:42,758 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:17:42,758 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:17:42,758 - INFO -    Exchange: NFO
-2026-01-05 22:17:42,758 - INFO -    Type: FUT
-2026-01-05 22:17:42,758 - INFO -    Lots: 2
-2026-01-05 22:17:42,758 - INFO -    Target: 100 points
-2026-01-05 22:17:42,758 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:17:42,758 - INFO - 📊 Trading Mode: PAPER
-2026-01-05 22:17:42,758 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-05 22:17:42,758 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-05 22:17:42,758 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-05 22:17:42,758 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-05 22:17:42,758 - INFO - 📁 Trades Log File: trades.json
-2026-01-05 22:17:42,758 - INFO - 📧 Email Notifications: Enabled
-2026-01-05 22:17:42,758 - INFO - ================================================================================
-2026-01-05 22:17:42,758 - INFO - ================================================================================
-2026-01-05 22:17:42,758 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-05 22:17:42,758 - INFO - ================================================================================
-2026-01-05 22:17:42,758 - INFO - Attempting to connect to Kite API...
-2026-01-05 22:17:42,758 - INFO - Reading access token from file: access_token.txt
-2026-01-05 22:17:42,758 - INFO - Access token loaded: syiwrNxjtr...
-2026-01-05 22:17:42,758 - INFO - Initializing KiteConnect instance
-2026-01-05 22:17:42,758 - INFO - Setting access token
-2026-01-05 22:17:42,758 - INFO - 📡 Fetching instrument: BANKNIFTY (FUT) from NFO...
-2026-01-05 22:17:43,393 - WARNING - ⚠ API lot size (30) differs from config (15)
-2026-01-05 22:17:43,393 - WARNING -    Using config value: 15
-2026-01-05 22:17:43,393 - INFO - ✓ Selected Instrument: BANKNIFTY26JANFUT
-2026-01-05 22:17:43,393 - INFO -   Instrument Token: 12601346
-2026-01-05 22:17:43,393 - INFO -   Exchange: NFO
-2026-01-05 22:17:43,393 - INFO -   Type: FUT
-2026-01-05 22:17:43,393 - INFO -   Expiry: 2026-01-27
-2026-01-05 22:17:43,393 - INFO -   Lot Size: 15 units per lot
-2026-01-05 22:17:43,393 - INFO -   Trading: 2 lot(s) = 30 units
-2026-01-05 22:17:43,396 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-05 22:17:44,582 - INFO - ✓ WebSocket connected successfully
-2026-01-05 22:17:44,583 - INFO - 📡 Subscribed to BANKNIFTY26JANFUT (12601346)
-2026-01-05 22:17:44,583 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-05 22:17:45,401 - INFO - ✓ WebSocket setup complete
-2026-01-05 22:17:45,402 - INFO - ✓ Kite API connection established successfully
-2026-01-05 22:17:45,402 - INFO - ⏰ Current time: 22:17:45
-2026-01-05 22:17:45,402 - INFO - ⏰ Next candle completes at: 22:20:00
-2026-01-05 22:17:45,402 - INFO - ⏰ Will fetch at: 22:20:10 (+10s delay)
-2026-01-05 22:17:45,402 - INFO - ⏰ Waiting 144 seconds...
-2026-01-05 22:17:45,402 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-05 22:20:10,005 - INFO - 🔄 Reloading configuration from config.json...
-2026-01-05 22:20:10,007 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:20:10,007 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:20:10,008 - INFO -    Exchange: NFO
-2026-01-05 22:20:10,008 - INFO -    Type: FUT
-2026-01-05 22:20:10,008 - INFO -    Lots: 2
-2026-01-05 22:20:10,008 - INFO -    Target: 100 points
-2026-01-05 22:20:10,008 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:20:10,008 - INFO - 🔄 Starting data fetch at 22:20:10
-2026-01-05 22:20:10,008 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:20:10,008 - INFO - Starting historical data fetch...
-2026-01-05 22:20:10,008 - INFO - Instrument Token (int): 12601346
-2026-01-05 22:20:10,008 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-05 22:20:10,008 - INFO - From: 2025-12-26 22:20:10
-2026-01-05 22:20:10,008 - INFO - To: 2026-01-05 22:20:10
-2026-01-05 22:20:10,008 - INFO - Interval: 5minute
-2026-01-05 22:20:10,008 - INFO - Calling Kite API for historical data...
-2026-01-05 22:20:10,138 - INFO - ✓ Received 450 candles from API
-2026-01-05 22:20:10,138 - INFO - ℹ️  Excluding current candle (still forming) - using 449 complete candles
-2026-01-05 22:20:10,138 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-05 22:20:10,149 - INFO - 📊 Latest RSI: 42.65
-2026-01-05 22:20:10,149 - INFO - 📊 Filtered latest 14 candles
-2026-01-05 22:20:10,149 - INFO - 📅 Data range: 2026-01-05 14:15 to 2026-01-05 15:20
-2026-01-05 22:20:10,149 - INFO - Processing candle data with RSI...
-2026-01-05 22:20:10,149 - INFO - 🔍 Checking order conditions...
-2026-01-05 22:20:10,149 - INFO - ℹ️  TRADE SKIPPED - RSI not available or first calculation
-2026-01-05 22:20:10,149 - INFO - Saving 14 candles to candles_data.json...
-2026-01-05 22:20:10,150 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-05 22:20:10,150 - INFO - File size: 2357 bytes
-2026-01-05 22:20:10,150 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:20:10,150 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-05 22:20:10,150 - INFO -   🕐 Date: 2026-01-05T15:20:00+05:30
-2026-01-05 22:20:10,150 - INFO -   💹 Open: 60156.2
-2026-01-05 22:20:10,150 - INFO -   ⬆️  High: 60176.6
-2026-01-05 22:20:10,150 - INFO -   ⬇️  Low: 60142.6
-2026-01-05 22:20:10,150 - INFO -   💵 Close: 60149.2
-2026-01-05 22:20:10,150 - INFO -   📦 Volume: 17100
-2026-01-05 22:20:10,150 - INFO -   📈 RSI: 42.65081486254309
-2026-01-05 22:20:10,150 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:20:10,150 - INFO - ✓ Data fetch complete at 22:20:10
-2026-01-05 22:20:10,150 - INFO - ================================================================================
-2026-01-05 22:20:10,150 - INFO - ⏰ Current time: 22:20:10
-2026-01-05 22:20:10,150 - INFO - ⏰ Next candle completes at: 22:25:00
-2026-01-05 22:20:10,150 - INFO - ⏰ Will fetch at: 22:25:10 (+10s delay)
-2026-01-05 22:20:10,150 - INFO - ⏰ Waiting 299 seconds...
-2026-01-05 22:25:10,004 - INFO - 🔄 Reloading configuration from config.json...
-2026-01-05 22:25:10,007 - INFO - 📄 Loaded configuration from config.json:
-2026-01-05 22:25:10,007 - INFO -    Instrument: BANKNIFTY
-2026-01-05 22:25:10,007 - INFO -    Exchange: NFO
-2026-01-05 22:25:10,007 - INFO -    Type: FUT
-2026-01-05 22:25:10,007 - INFO -    Lots: 2
-2026-01-05 22:25:10,007 - INFO -    Target: 100 points
-2026-01-05 22:25:10,007 - INFO -    High-Low Diff: 500 points
-2026-01-05 22:25:10,007 - INFO - 🔄 Starting data fetch at 22:25:10
-2026-01-05 22:25:10,007 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:25:10,008 - INFO - Starting historical data fetch...
-2026-01-05 22:25:10,008 - INFO - Instrument Token (int): 12601346
-2026-01-05 22:25:10,008 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-05 22:25:10,008 - INFO - From: 2025-12-26 22:25:10
-2026-01-05 22:25:10,008 - INFO - To: 2026-01-05 22:25:10
-2026-01-05 22:25:10,008 - INFO - Interval: 5minute
-2026-01-05 22:25:10,008 - INFO - Calling Kite API for historical data...
-2026-01-05 22:25:10,091 - INFO - ✓ Received 450 candles from API
-2026-01-05 22:25:10,091 - INFO - ℹ️  Excluding current candle (still forming) - using 449 complete candles
-2026-01-05 22:25:10,091 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-05 22:25:10,095 - INFO - 📊 Latest RSI: 42.65
-2026-01-05 22:25:10,095 - INFO - 📊 Filtered latest 14 candles
-2026-01-05 22:25:10,095 - INFO - 📅 Data range: 2026-01-05 14:15 to 2026-01-05 15:20
-2026-01-05 22:25:10,095 - INFO - Processing candle data with RSI...
-2026-01-05 22:25:10,095 - INFO - 🔍 Checking order conditions...
-2026-01-05 22:25:10,095 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-05 22:25:10,095 - INFO -    Previous RSI: 42.65 | Current RSI: 42.65
-2026-01-05 22:25:10,095 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-05 22:25:10,095 - INFO - Saving 14 candles to candles_data.json...
-2026-01-05 22:25:10,097 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-05 22:25:10,097 - INFO - File size: 2357 bytes
-2026-01-05 22:25:10,097 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:25:10,097 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-05 22:25:10,097 - INFO -   🕐 Date: 2026-01-05T15:20:00+05:30
-2026-01-05 22:25:10,097 - INFO -   💹 Open: 60156.2
-2026-01-05 22:25:10,097 - INFO -   ⬆️  High: 60176.6
-2026-01-05 22:25:10,097 - INFO -   ⬇️  Low: 60142.6
-2026-01-05 22:25:10,097 - INFO -   💵 Close: 60149.2
-2026-01-05 22:25:10,097 - INFO -   📦 Volume: 17100
-2026-01-05 22:25:10,097 - INFO -   📈 RSI: 42.65081486254309
-2026-01-05 22:25:10,097 - INFO - --------------------------------------------------------------------------------
-2026-01-05 22:25:10,097 - INFO - ✓ Data fetch complete at 22:25:10
-2026-01-05 22:25:10,097 - INFO - ================================================================================
-2026-01-05 22:25:10,097 - INFO - ⏰ Current time: 22:25:10
-2026-01-05 22:25:10,097 - INFO - ⏰ Next candle completes at: 22:30:00
-2026-01-05 22:25:10,097 - INFO - ⏰ Will fetch at: 22:30:10 (+10s delay)
-2026-01-05 22:25:10,097 - INFO - ⏰ Waiting 299 seconds...
+2026-01-08 12:22:04,790 - INFO - Server stopped by user (Ctrl+C)
+2026-01-08 12:22:04,790 - INFO - ================================================================================
+2026-01-08 13:25:04,548 - INFO - ================================================================================
+2026-01-08 13:25:04,549 - INFO - Initializing Kite Data Fetcher Server
+2026-01-08 13:25:04,549 - INFO - ================================================================================
+2026-01-08 13:25:04,549 - INFO - Loading environment variables from .env file
+2026-01-08 13:25:04,549 - INFO - API_KEY loaded: lo8381a8...
+2026-01-08 13:25:04,549 - INFO - 📋 Loading configuration from config.json...
+2026-01-08 13:25:04,549 - INFO - ✓ Configuration loaded successfully
+2026-01-08 13:25:04,549 - INFO -   📈 Instrument: BANKNIFTY
+2026-01-08 13:25:04,549 - INFO -   🏢 Exchange: NFO
+2026-01-08 13:25:04,549 - INFO -   📊 Type: FUT
+2026-01-08 13:25:04,549 - INFO -   📏 High-Low Diff: 35.0
+2026-01-08 13:25:04,549 - INFO -   🎯 Target: 100.0
+2026-01-08 13:25:04,549 - INFO -   📦 Lots: 1
+2026-01-08 13:25:04,549 - INFO -   📦 Lot Size: 30
+2026-01-08 13:25:04,549 - INFO -   📦 Total Quantity: 30
+2026-01-08 13:25:04,549 - INFO - 📊 Trading Mode: PAPER
+2026-01-08 13:25:04,549 - INFO - 📦 Trade Quantity: 1 lot(s)
+2026-01-08 13:25:04,549 - INFO - 🔄 Retry Interval: 300 seconds
+2026-01-08 13:25:04,549 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
+2026-01-08 13:25:04,549 - INFO - 📁 Candles Data File: candles_data.json
+2026-01-08 13:25:04,549 - INFO - 📁 Trades Log File: trades.json
+2026-01-08 13:25:04,549 - INFO - 📧 Email Notifications: Enabled
+2026-01-08 13:25:04,549 - INFO - ================================================================================
+2026-01-08 13:25:04,549 - INFO - ================================================================================
+2026-01-08 13:25:04,549 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
+2026-01-08 13:25:04,549 - INFO - ================================================================================
+2026-01-08 13:25:04,549 - INFO - Attempting to connect to Kite API...
+2026-01-08 13:25:04,549 - INFO - Reading access token from file: access_token.txt
+2026-01-08 13:25:04,549 - INFO - Access token loaded: 41lgtN2rPD...
+2026-01-08 13:25:04,549 - INFO - Initializing KiteConnect instance
+2026-01-08 13:25:04,550 - INFO - Setting access token
+2026-01-08 13:25:04,550 - INFO - Fetching FUT instrument...
+2026-01-08 13:25:04,550 - INFO - Fetching BANKNIFTY futures instruments...
+2026-01-08 13:25:05,351 - INFO - ✓ Selected BANKNIFTY Futures: BANKNIFTY26JANFUT
+2026-01-08 13:25:05,351 - INFO -   Instrument Token: 12601346
+2026-01-08 13:25:05,351 - INFO -   Expiry: 2026-01-27
+2026-01-08 13:25:05,351 - INFO -   Lot Size: 30 units per lot (from .env)
+2026-01-08 13:25:05,351 - INFO -   Trading: 1 lot(s) = 30 units
+2026-01-08 13:25:05,354 - INFO - 🔌 Setting up WebSocket connection...
+2026-01-08 13:25:05,609 - INFO - ✓ WebSocket connected successfully
+2026-01-08 13:25:05,609 - INFO - 📡 Subscribed to BANKNIFTY26JANFUT (12601346)
+2026-01-08 13:25:05,609 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
+2026-01-08 13:25:07,360 - INFO - ✓ WebSocket setup complete
+2026-01-08 13:25:07,360 - INFO - ✓ Kite API connection established successfully
+2026-01-08 13:25:07,360 - INFO - ⏰ Current time: 13:25:07
+2026-01-08 13:25:07,360 - INFO - ⏰ Next candle completes at: 13:30:00
+2026-01-08 13:25:07,360 - INFO - ⏰ Will fetch at: 13:30:10 (+10s delay)
+2026-01-08 13:25:07,360 - INFO - ⏰ Waiting 302 seconds...
+2026-01-08 13:25:07,360 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
