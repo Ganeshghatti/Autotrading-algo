@@ -48,6 +48,7 @@ def register_admin_routes(app):
                 "target": request.form.get("target"),
                 "lots": request.form.get("lots"),
                 "lot_size": request.form.get("lot_size"),
+                "trading_mode": request.form.get("trading_mode", "paper"),
             }
             print("✅ Config Data Updated:", config_data)
 

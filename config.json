@@ -5,5 +5,6 @@
     "high_low_diff": "35",
     "target": "100",
     "lots": "1",
-    "lot_size": "30"
+    "lot_size": "30",
+    "trading_mode": "paper"
 }

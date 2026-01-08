@@ -44,7 +44,13 @@
               <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" fill="white"/>
             </svg>
           </div>
-      <h2>Trading Configuration</h2>
+      <h2>Trading Configuration 
+            {% if config.trading_mode == 'real' %}
+              <span style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-left: 12px; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">💰 LIVE</span>
+            {% else %}
+              <span style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-left: 12px; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);">📝 PAPER</span>
+            {% endif %}
+          </h2>
           <p class="subtitle">Manage your automated trading parameters</p>
         </div>
       </div>
@@ -239,6 +245,32 @@
         />
               <svg class="input-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Trading Mode -->
+          <div class="form-group">
+            <label for="trading_mode">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              Trading Mode
+              <span class="tooltip">ⓘ
+                <span class="tooltiptext">Paper: Simulated trades (no real money) | Real: Live trading with real money</span>
+              </span>
+            </label>
+            <div class="input-wrapper">
+              <select
+                id="trading_mode"
+                name="trading_mode"
+                required
+              >
+                <option value="paper" {{ 'selected' if config.trading_mode == 'paper' or not config.trading_mode else '' }}>📝 Paper Trading (Simulated)</option>
+                <option value="real" {{ 'selected' if config.trading_mode == 'real' else '' }}>💰 Real Trading (Live)</option>
+              </select>
+              <svg class="input-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
             </div>
           </div>

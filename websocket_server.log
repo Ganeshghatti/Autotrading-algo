@@ -110,3 +110,40 @@
 2026-01-08 13:25:07,360 - INFO - ⏰ Will fetch at: 13:30:10 (+10s delay)
 2026-01-08 13:25:07,360 - INFO - ⏰ Waiting 302 seconds...
 2026-01-08 13:25:07,360 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
+2026-01-08 13:30:10,012 - INFO - 🔄 Starting data fetch at 13:30:10
+2026-01-08 13:30:10,013 - INFO - --------------------------------------------------------------------------------
+2026-01-08 13:30:10,013 - INFO - Starting historical data fetch...
+2026-01-08 13:30:10,013 - INFO - Instrument Token (int): 12601346
+2026-01-08 13:30:10,013 - INFO - Fetching data from last 10 days (up to now)...
+2026-01-08 13:30:10,013 - INFO - From: 2025-12-29 13:30:10
+2026-01-08 13:30:10,013 - INFO - To: 2026-01-08 13:30:10
+2026-01-08 13:30:10,013 - INFO - Interval: 5minute
+2026-01-08 13:30:10,013 - INFO - Calling Kite API for historical data...
+2026-01-08 13:30:10,135 - INFO - ✓ Received 601 candles from API
+2026-01-08 13:30:10,135 - INFO - ℹ️  Excluding current candle (still forming) - using 600 complete candles
+2026-01-08 13:30:10,135 - INFO - Calculating RSI (14-period) on complete candles...
+2026-01-08 13:30:10,145 - INFO - 📊 Latest RSI: 40.57
+2026-01-08 13:30:10,145 - INFO - 📊 Filtered latest 14 candles
+2026-01-08 13:30:10,145 - INFO - 📅 Data range: 2026-01-08 12:20 to 2026-01-08 13:25
+2026-01-08 13:30:10,145 - INFO - Processing candle data with RSI...
+2026-01-08 13:30:10,145 - INFO - 🔍 Checking order conditions...
+2026-01-08 13:30:10,145 - INFO - ℹ️  TRADE SKIPPED - RSI not available or first calculation
+2026-01-08 13:30:10,145 - INFO - Saving 14 candles to candles_data.json...
+2026-01-08 13:30:10,146 - INFO - ✓ Successfully saved 14 candles to candles_data.json
+2026-01-08 13:30:10,146 - INFO - File size: 2357 bytes
+2026-01-08 13:30:10,146 - INFO - --------------------------------------------------------------------------------
+2026-01-08 13:30:10,146 - INFO - 📊 LATEST CANDLE SUMMARY:
+2026-01-08 13:30:10,146 - INFO -   🕐 Date: 2026-01-08T13:25:00+05:30
+2026-01-08 13:30:10,146 - INFO -   💹 Open: 59884.4
+2026-01-08 13:30:10,146 - INFO -   ⬆️  High: 59896.4
+2026-01-08 13:30:10,146 - INFO -   ⬇️  Low: 59853.4
+2026-01-08 13:30:10,146 - INFO -   💵 Close: 59853.4
+2026-01-08 13:30:10,146 - INFO -   📦 Volume: 4890
+2026-01-08 13:30:10,146 - INFO -   📈 RSI: 40.566594404935756
+2026-01-08 13:30:10,146 - INFO - --------------------------------------------------------------------------------
+2026-01-08 13:30:10,146 - INFO - ✓ Data fetch complete at 13:30:10
+2026-01-08 13:30:10,146 - INFO - ================================================================================
+2026-01-08 13:30:10,146 - INFO - ⏰ Current time: 13:30:10
+2026-01-08 13:30:10,147 - INFO - ⏰ Next candle completes at: 13:35:00
+2026-01-08 13:30:10,147 - INFO - ⏰ Will fetch at: 13:35:10 (+10s delay)
+2026-01-08 13:30:10,147 - INFO - ⏰ Waiting 299 seconds...

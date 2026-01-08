@@ -106,7 +106,7 @@ class KiteDataFetcher:
         self.trades_file = "trades.json"  # All trades (paper and real) saved here
         
         # Trading configuration - will be loaded from config.json
-        self.trading_enabled = os.getenv("TRADING_ENABLED", "paper").lower()  # "real", "paper", or "disabled"
+        self.trading_enabled = None  # Will be loaded from config ("paper" or "real")
         self.trading_lots = None  # Will be loaded from config
         self.instrument_symbol = None  # Will be loaded from config
         self.exchange = None  # Will be loaded from config
@@ -155,6 +155,7 @@ class KiteDataFetcher:
                 self.target = 30
                 self.trading_lots = 1
                 self.lot_size = 15
+                self.trading_enabled = "paper"
                 self.quantity = self.trading_lots * self.lot_size
                 logger.warning("⚠ Using default configuration values")
                 return False
@@ -173,6 +174,7 @@ class KiteDataFetcher:
             self.target = float(config.get('target', 30))
             self.trading_lots = int(config.get('lots', 1))
             self.lot_size = int(config.get('lot_size', 15))
+            self.trading_enabled = config.get('trading_mode', 'paper').lower()  # "paper" or "real"
             self.quantity = self.trading_lots * self.lot_size
             
             logger.info(f"✓ Configuration loaded successfully")
@@ -184,6 +186,7 @@ class KiteDataFetcher:
             logger.info(f"  📦 Lots: {self.trading_lots}")
             logger.info(f"  📦 Lot Size: {self.lot_size}")
             logger.info(f"  📦 Total Quantity: {self.quantity}")
+            logger.info(f"  💼 Trading Mode: {self.trading_enabled.upper()}")
             
             return True
             
@@ -953,10 +956,6 @@ class KiteDataFetcher:
         3. On NEXT candle, check if price crosses alert candle trigger
         4. Place order if trigger is crossed
         """
-        if self.trading_enabled == "disabled":
-            logger.info("ℹ️  TRADE SKIPPED - Trading is disabled (TRADING_ENABLED=disabled)")
-            return
-        
         # Skip first candle of the day
         if self.is_first_candle_of_day(latest_candle.get('date')):
             logger.info("⚠ TRADE SKIPPED - First candle of day (9:15 AM) - Rule: Skip first candle")
