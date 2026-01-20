@@ -925,3 +925,26 @@ Exception: input array type is not double
 
 2026-01-20 23:45:10,127 - WARNING - ⚠ Data fetch failed. Connection might be lost.
 2026-01-20 23:45:10,127 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
+2026-01-20 23:50:10,134 - INFO - Attempting to connect to Kite API...
+2026-01-20 23:50:10,136 - INFO - Reading access token from file: access_token.txt
+2026-01-20 23:50:10,138 - INFO - Access token loaded: JMrhfgQBfb...
+2026-01-20 23:50:10,138 - INFO - Initializing KiteConnect instance
+2026-01-20 23:50:10,143 - INFO - Setting access token
+2026-01-20 23:50:10,143 - INFO - Fetching FUT instrument...
+2026-01-20 23:50:10,143 - INFO - Fetching CRUDEOIL futures instruments...
+2026-01-20 23:50:10,925 - INFO - ✓ Selected CRUDEOIL Futures: CRUDEOIL26FEBFUT
+2026-01-20 23:50:10,925 - INFO -   Instrument Token: 119555335
+2026-01-20 23:50:10,925 - INFO -   Expiry: 2026-02-19
+2026-01-20 23:50:10,925 - INFO -   Lot Size: 100 units per lot (from .env)
+2026-01-20 23:50:10,925 - INFO -   Trading: 2 lot(s) = 200 units
+2026-01-20 23:50:10,930 - INFO - 🔌 Setting up WebSocket connection...
+2026-01-20 23:50:11,880 - INFO - ✓ WebSocket connected successfully
+2026-01-20 23:50:11,880 - INFO - 📡 Subscribed to CRUDEOIL26FEBFUT (119555335)
+2026-01-20 23:50:11,880 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
+2026-01-20 23:50:12,936 - INFO - ✓ WebSocket setup complete
+2026-01-20 23:50:12,936 - INFO - ✓ Kite API connection established successfully
+2026-01-20 23:50:12,936 - INFO - ⏰ Current time: 23:50:12
+2026-01-20 23:50:12,936 - INFO - ⏰ Next candle completes at: 23:55:00
+2026-01-20 23:50:12,936 - INFO - ⏰ Will fetch at: 23:55:10 (+10s delay)
+2026-01-20 23:50:12,936 - INFO - ⏰ Waiting 297 seconds...
+2026-01-20 23:50:12,936 - INFO - ⏳ Reconnected! Waiting for next 5-minute interval before fetching...

@@ -803,7 +803,9 @@ class KiteDataFetcher:
         
         # Convert to pandas DataFrame
         df = pd.DataFrame(candles)
-        closes = df["close"].values
+        
+        # Ensure close values are float64 (required by TA-Lib)
+        closes = df["close"].astype(np.float64).values
         
         # Calculate RSI using TA-Lib (14-period)
         rsi_values = talib.RSI(closes, timeperiod=14)
