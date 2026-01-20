@@ -382,7 +382,15 @@ class KiteDataFetcher:
                     
                     return inst
             
+            # If not found, log helpful message
             logger.error(f"✗ Option instrument not found: {self.instrument_symbol}")
+            logger.error(f"⚠ TROUBLESHOOTING:")
+            logger.error(f"  1. Check symbol format: {self.instrument_symbol}")
+            logger.error(f"     Correct format: BANKNIFTY26JAN50000CE (INDEX + YYMMM + STRIKE + CE/PE)")
+            logger.error(f"  2. Verify expiry date exists (not expired or too far)")
+            logger.error(f"  3. Check strike price is valid for current market")
+            logger.error(f"  4. Ensure symbol is available on {self.exchange}")
+            logger.error(f"  5. Update config.json with correct trading symbol")
             return None
             
         except Exception as e:
@@ -417,7 +425,13 @@ class KiteDataFetcher:
                     
                     return inst
             
+            # If not found, log helpful message
             logger.error(f"✗ Equity instrument not found: {self.instrument_symbol}")
+            logger.error(f"⚠ TROUBLESHOOTING:")
+            logger.error(f"  1. Check symbol: {self.instrument_symbol}")
+            logger.error(f"  2. Ensure exchange is 'NSE' (not 'NFO') in config.json")
+            logger.error(f"  3. Verify stock symbol is correct (e.g., SBIN, RELIANCE, TCS)")
+            logger.error(f"  4. Check if stock is actively traded on NSE")
             return None
             
         except Exception as e:
@@ -1329,7 +1343,14 @@ class KiteDataFetcher:
                 logger.warning(f"⚠ Not connected. Retrying in {self.retry_interval} seconds...")
                 time.sleep(self.retry_interval)
                 connection_success = self.connect_to_kite()
-                continue
+                
+                # If reconnection successful, wait for next 5-minute interval
+                if connection_success:
+                    wait_time = self.calculate_next_5min_interval()
+                    logger.info(f"⏳ Reconnected! Waiting for next 5-minute interval before fetching...")
+                    time.sleep(wait_time)
+                else:
+                    continue
             
             # Check for configuration changes before processing
             self.check_config_changes()

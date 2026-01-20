@@ -1,10 +1,10 @@
 {
-    "instrument_symbol": "BANKNIFTY",
+    "instrument_symbol": "BANKNIFTY26JAN59300PE",
     "exchange": "NFO",
-    "instrument_type": "FUT",
+    "instrument_type": "PE",
     "high_low_diff": "35",
-    "target": "100",
-    "lots": "1",
+    "target": "10",
+    "lots": "2",
     "lot_size": "30",
     "trading_mode": "paper"
 }

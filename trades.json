@@ -1,0 +1,30 @@
+[
+  {
+    "trade_id": "PT_20260113_145513_691601",
+    "trade_mode": "PAPER",
+    "instrument_token": "13300482",
+    "tradingsymbol": "BANKNIFTY26JAN59300PE",
+    "lots": 2,
+    "lot_size": 30,
+    "quantity": 60,
+    "transaction_type": "SELL",
+    "order_type": "MARKET",
+    "product": "MIS",
+    "entry_price": 321.05,
+    "timestamp": "2026-01-13T14:55:13.691656",
+    "status": "CLOSED",
+    "alert_rsi": 34.22,
+    "alert_open": 352.25,
+    "alert_high": 352.4,
+    "alert_low": 319,
+    "alert_close": 325.8,
+    "trigger_high": 465.85,
+    "trigger_low": 287.25,
+    "stop_loss": 352.4,
+    "target": 311.05,
+    "exit_price": 309.0,
+    "exit_time": "2026-01-13T15:00:09.221892",
+    "exit_reason": "TARGET",
+    "pnl": 723.0
+  }
+]
