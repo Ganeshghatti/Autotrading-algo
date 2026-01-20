@@ -948,3 +948,121 @@ Exception: input array type is not double
 2026-01-20 23:50:12,936 - INFO - ⏰ Will fetch at: 23:55:10 (+10s delay)
 2026-01-20 23:50:12,936 - INFO - ⏰ Waiting 297 seconds...
 2026-01-20 23:50:12,936 - INFO - ⏳ Reconnected! Waiting for next 5-minute interval before fetching...
+2026-01-20 23:55:10,005 - INFO - ================================================================================
+2026-01-20 23:55:10,007 - INFO - 🔄 CONFIG CHANGE DETECTED!
+2026-01-20 23:55:10,007 - INFO -    File: config.json
+2026-01-20 23:55:10,007 - INFO -    Flag 'is_changed' = true
+2026-01-20 23:55:10,007 - INFO -    Changes will be applied in next 5-minute interval
+2026-01-20 23:55:10,007 - INFO - ================================================================================
+2026-01-20 23:55:10,007 - INFO - ⚙️  Applying configuration changes before next data fetch...
+2026-01-20 23:55:10,007 - INFO - ================================================================================
+2026-01-20 23:55:10,007 - INFO - 🔄 APPLYING CONFIGURATION CHANGES
+2026-01-20 23:55:10,007 - INFO - ================================================================================
+2026-01-20 23:55:10,007 - INFO - 📋 Loading configuration from config.json...
+2026-01-20 23:55:10,008 - INFO - ✓ Configuration loaded successfully
+2026-01-20 23:55:10,008 - INFO -   📈 Instrument: CRUDEOIL
+2026-01-20 23:55:10,008 - INFO -   🏢 Exchange: MCX
+2026-01-20 23:55:10,008 - INFO -   📊 Type: FUT
+2026-01-20 23:55:10,008 - INFO -   📏 High-Low Diff: 15.0
+2026-01-20 23:55:10,008 - INFO -   🎯 Target: 10.0
+2026-01-20 23:55:10,008 - INFO -   📦 Lots: 2
+2026-01-20 23:55:10,008 - INFO -   📦 Lot Size: 100
+2026-01-20 23:55:10,008 - INFO -   📦 Total Quantity: 200
+2026-01-20 23:55:10,008 - INFO -   💼 Trading Mode: PAPER
+2026-01-20 23:55:10,008 - INFO - 📊 Instrument unchanged - keeping existing connection
+2026-01-20 23:55:10,008 - INFO - ✅ Configuration changes applied successfully
+2026-01-20 23:55:10,008 - INFO - ================================================================================
+2026-01-20 23:55:10,008 - INFO - 🔄 Starting data fetch at 23:55:10
+2026-01-20 23:55:10,008 - INFO - --------------------------------------------------------------------------------
+2026-01-20 23:55:10,008 - INFO - Starting historical data fetch...
+2026-01-20 23:55:10,008 - INFO - Instrument Token (int): 119555335
+2026-01-20 23:55:10,008 - INFO - Fetching data from last 10 days (up to now)...
+2026-01-20 23:55:10,008 - INFO - From: 2026-01-10 23:55:10
+2026-01-20 23:55:10,008 - INFO - To: 2026-01-20 23:55:10
+2026-01-20 23:55:10,008 - INFO - Interval: 5minute
+2026-01-20 23:55:10,008 - INFO - Calling Kite API for historical data...
+2026-01-20 23:55:10,113 - INFO - ✓ Received 1157 candles from API
+2026-01-20 23:55:10,115 - INFO - ℹ️  Excluding current candle (still forming) - using 1156 complete candles
+2026-01-20 23:55:10,115 - INFO - Calculating RSI (14-period) on complete candles...
+2026-01-20 23:55:10,121 - ERROR - ✗ Error fetching historical data: input array type is not double
+2026-01-20 23:55:10,121 - ERROR - Error type: Exception
+2026-01-20 23:55:10,122 - ERROR - Traceback: Traceback (most recent call last):
+  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1281, in fetch_historical_data
+    # Calculate RSI on complete candles only
+  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 809, in calculate_rsi
+  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/talib/__init__.py", line 80, in wrapper
+    result = func(*_args, **_kwds)
+  File "talib/_func.pxi", line 4477, in talib._ta_lib.RSI
+  File "talib/_func.pxi", line 22, in talib._ta_lib.check_array
+Exception: input array type is not double
+
+2026-01-20 23:55:10,122 - WARNING - ⚠ Data fetch failed. Connection might be lost.
+2026-01-20 23:55:10,122 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
+2026-01-20 23:56:31,322 - INFO - 
+================================================================================
+2026-01-20 23:56:31,323 - INFO - Server stopped by user (Ctrl+C)
+2026-01-20 23:56:31,323 - INFO - ================================================================================
+2026-01-20 23:56:32,919 - INFO - ================================================================================
+2026-01-20 23:56:32,919 - INFO - Initializing Kite Data Fetcher Server
+2026-01-20 23:56:32,919 - INFO - ================================================================================
+2026-01-20 23:56:32,919 - INFO - Loading environment variables from .env file
+2026-01-20 23:56:32,919 - INFO - API_KEY loaded: lo8381a8...
+2026-01-20 23:56:32,919 - INFO - 📋 Loading configuration from config.json...
+2026-01-20 23:56:32,919 - INFO - ✓ Configuration loaded successfully
+2026-01-20 23:56:32,919 - INFO -   📈 Instrument: CRUDEOIL
+2026-01-20 23:56:32,919 - INFO -   🏢 Exchange: MCX
+2026-01-20 23:56:32,919 - INFO -   📊 Type: FUT
+2026-01-20 23:56:32,919 - INFO -   📏 High-Low Diff: 15.0
+2026-01-20 23:56:32,919 - INFO -   🎯 Target: 10.0
+2026-01-20 23:56:32,919 - INFO -   📦 Lots: 2
+2026-01-20 23:56:32,919 - INFO -   📦 Lot Size: 100
+2026-01-20 23:56:32,919 - INFO -   📦 Total Quantity: 200
+2026-01-20 23:56:32,919 - INFO -   💼 Trading Mode: PAPER
+2026-01-20 23:56:32,919 - INFO - 📊 Trading Mode: PAPER
+2026-01-20 23:56:32,919 - INFO - 📦 Trade Quantity: 2 lot(s)
+2026-01-20 23:56:32,919 - INFO - 🔄 Retry Interval: 300 seconds
+2026-01-20 23:56:32,920 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
+2026-01-20 23:56:32,920 - INFO - 📁 Candles Data File: candles_data.json
+2026-01-20 23:56:32,920 - INFO - 📁 Trades Log File: trades.json
+2026-01-20 23:56:32,920 - INFO - 📧 Email Notifications: Enabled
+2026-01-20 23:56:32,920 - INFO - ================================================================================
+2026-01-20 23:56:32,920 - INFO - ================================================================================
+2026-01-20 23:56:32,920 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
+2026-01-20 23:56:32,920 - INFO - ================================================================================
+2026-01-20 23:56:32,920 - INFO - Attempting to connect to Kite API...
+2026-01-20 23:56:32,920 - INFO - Reading access token from file: access_token.txt
+2026-01-20 23:56:32,920 - INFO - Access token loaded: JMrhfgQBfb...
+2026-01-20 23:56:32,920 - INFO - Initializing KiteConnect instance
+2026-01-20 23:56:32,920 - INFO - Setting access token
+2026-01-20 23:56:32,920 - INFO - Fetching FUT instrument...
+2026-01-20 23:56:32,920 - INFO - Fetching CRUDEOIL futures instruments...
+2026-01-20 23:56:33,665 - INFO - ✓ Selected CRUDEOIL Futures: CRUDEOIL26FEBFUT
+2026-01-20 23:56:33,665 - INFO -   Instrument Token: 119555335
+2026-01-20 23:56:33,665 - INFO -   Expiry: 2026-02-19
+2026-01-20 23:56:33,665 - INFO -   Lot Size: 100 units per lot (from .env)
+2026-01-20 23:56:33,665 - INFO -   Trading: 2 lot(s) = 200 units
+2026-01-20 23:56:33,670 - INFO - 🔌 Setting up WebSocket connection...
+2026-01-20 23:56:33,777 - INFO - ✓ WebSocket connected successfully
+2026-01-20 23:56:33,777 - INFO - 📡 Subscribed to CRUDEOIL26FEBFUT (119555335)
+2026-01-20 23:56:33,777 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
+2026-01-20 23:56:35,675 - INFO - ✓ WebSocket setup complete
+2026-01-20 23:56:35,676 - INFO - ✓ Kite API connection established successfully
+2026-01-20 23:56:35,676 - INFO - ⏰ Current time: 23:56:35
+2026-01-20 23:56:35,676 - INFO - ⏰ Next candle completes at: 00:00:00
+2026-01-20 23:56:35,677 - INFO - ⏰ Will fetch at: 00:00:10 (+10s delay)
+2026-01-20 23:56:35,677 - INFO - ⏰ Waiting -86185 seconds...
+2026-01-20 23:56:35,677 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
+2026-01-20 23:56:35,677 - ERROR - 
+================================================================================
+2026-01-20 23:56:35,677 - ERROR - FATAL ERROR: sleep length must be non-negative
+2026-01-20 23:56:35,677 - ERROR - Error type: ValueError
+2026-01-20 23:56:35,678 - ERROR - Traceback: Traceback (most recent call last):
+  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1432, in main
+    fetcher.run()
+    ~~~~~~~~~~~^^
+  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1376, in run
+    time.sleep(wait_time)
+    ~~~~~~~~~~^^^^^^^^^^^
+ValueError: sleep length must be non-negative
+
+2026-01-20 23:56:35,678 - ERROR - ================================================================================

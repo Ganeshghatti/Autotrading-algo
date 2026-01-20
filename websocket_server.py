@@ -775,15 +775,24 @@ class KiteDataFetcher:
         minutes = now.minute
         next_interval_minute = ((minutes // 5) + 1) * 5
         
+        # Handle minute overflow and midnight crossing
         if next_interval_minute >= 60:
-            next_time = now.replace(hour=now.hour + 1 if now.hour < 23 else 0, 
-                                   minute=0, second=0, microsecond=0)
+            # Next interval is in the next hour
+            next_time = now.replace(minute=0, second=0, microsecond=0)
+            next_time = next_time + timedelta(hours=1)
         else:
             next_time = now.replace(minute=next_interval_minute, second=0, microsecond=0)
         
         # Add processing delay to ensure candle is complete
         next_time_with_delay = next_time + timedelta(seconds=self.candle_processing_delay)
         wait_seconds = (next_time_with_delay - now).total_seconds()
+        
+        # Safety check: if wait time is negative or too small, add 5 minutes
+        if wait_seconds < 0:
+            logger.warning(f"⚠ Negative wait time detected ({wait_seconds:.0f}s), adding 5 minutes")
+            next_time = next_time + timedelta(minutes=5)
+            next_time_with_delay = next_time + timedelta(seconds=self.candle_processing_delay)
+            wait_seconds = (next_time_with_delay - now).total_seconds()
         
         logger.info(f"⏰ Current time: {now.strftime('%H:%M:%S')}")
         logger.info(f"⏰ Next candle completes at: {next_time.strftime('%H:%M:%S')}")
