@@ -1,10 +1,11 @@
 {
-    "instrument_symbol": "BANKNIFTY26JAN59300PE",
-    "exchange": "NFO",
-    "instrument_type": "PE",
-    "high_low_diff": "35",
+    "instrument_symbol": "CRUDEOIL",
+    "exchange": "MCX",
+    "instrument_type": "FUT",
+    "high_low_diff": "15",
     "target": "10",
     "lots": "2",
-    "lot_size": "30",
-    "trading_mode": "paper"
+    "lot_size": "100",
+    "trading_mode": "paper",
+    "is_changed": true
 }

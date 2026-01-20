@@ -26,10 +26,15 @@ def positions(kite):
 def ltp(kite, symbol):
     return kite.ltp([symbol])
 
-def get_instruments(kite, exchange=None):
+def get_instruments(kite, data=None):
     """
-    Get Nifty futures instrument tokens.
-    Returns only NIFTY futures contracts sorted by expiry (nearest first).
+    Get futures instrument tokens for a specified symbol.
+    Returns futures contracts sorted by expiry (nearest first).
+    
+    Parameters (via data dict):
+    - symbol_name: Name of the symbol (e.g., 'NIFTY', 'CRUDEOIL', 'BANKNIFTY'). Defaults to 'NIFTY'
+    - exchange: Exchange code (e.g., 'NFO', 'MCX'). Defaults to 'NFO'
+    - instrument_type: Instrument type (e.g., 'FUT', 'OPT'). Defaults to 'FUT'
     """
     access_token = read_from_file("access_token.txt")
     if not access_token:
@@ -37,20 +42,24 @@ def get_instruments(kite, exchange=None):
     
     kite.set_access_token(access_token)
     
+    # Extract parameters from data dict, with defaults
+    symbol_name = (data.get('symbol_name') or 'NIFTY').strip().upper() if data else 'NIFTY'
+    exchange = (data.get('exchange') or 'NFO').strip().upper() if data else 'NFO'
+    instrument_type = (data.get('instrument_type') or 'FUT').strip().upper() if data else 'FUT'
+    
     try:
-        # Get all NFO (futures) instruments
-        instruments = kite.instruments("NFO")
+        # Get all instruments from specified exchange
+        instruments = kite.instruments(exchange)
         
-        # Filter for NIFTY futures only (exact match, not BANKNIFTY, FINNIFTY, etc.)
-        nifty_futures = []
+        # Filter for specified symbol and instrument type
+        filtered_instruments = []
         for inst in instruments:
             name = inst.get('name', '').strip().upper()
-            tradingsymbol = inst.get('tradingsymbol', '').upper()
-            instrument_type = inst.get('instrument_type', '')
+            inst_type = inst.get('instrument_type', '').strip().upper()
             
-            # Check if it's exactly NIFTY (not BANKNIFTY, FINNIFTY, MIDCPNIFTY, etc.) and a futures contract
-            if name == 'NIFTY' and instrument_type == 'FUT':
-                nifty_futures.append({
+            # Check if it matches the specified symbol and instrument type
+            if name == symbol_name and inst_type == instrument_type:
+                filtered_instruments.append({
                     "instrument_token": inst.get('instrument_token'),
                     "tradingsymbol": inst.get('tradingsymbol'),
                     "name": inst.get('name'),
@@ -59,12 +68,12 @@ def get_instruments(kite, exchange=None):
                 })
         
         # Sort by expiry date (ascending) to get nearest expiry first
-        nifty_futures.sort(key=lambda x: x.get('expiry', ''))
+        filtered_instruments.sort(key=lambda x: x.get('expiry', ''))
         
-        if not nifty_futures:
-            return None, "No NIFTY futures found"
+        if not filtered_instruments:
+            return None, f"No {symbol_name} {instrument_type} found in {exchange}"
         
-        return nifty_futures, None
+        return filtered_instruments, None
     except Exception as e:
         return None, f"Error fetching instruments: {str(e)}"
 
@@ -128,7 +137,8 @@ def historical_data_with_alerts(kite, data):
     # - RS = AvgGain / AvgLoss
     # - RSI = 100 - (100 / (1 + RS))
     df = pd.DataFrame(historical_data)
-    closes = df["close"].values  # Convert to numpy array for TA-Lib
+    # Convert to numpy array and ensure float64 type (double) for TA-Lib
+    closes = np.array(df["close"].values, dtype=np.float64)
     
     # Calculate RSI using TA-Lib (14-period, Wilder's smoothing)
     rsi_values = talib.RSI(closes, timeperiod=14)
@@ -321,7 +331,8 @@ def backtest_strategy(kite, data):
     # - RS = AvgGain / AvgLoss
     # - RSI = 100 - (100 / (1 + RS))
     df = pd.DataFrame(historical_data)
-    closes = df["close"].values  # Convert to numpy array for TA-Lib
+    # Convert to numpy array and ensure float64 type (double) for TA-Lib
+    closes = np.array(df["close"].values, dtype=np.float64)
     
     # Calculate RSI using TA-Lib (14-period, Wilder's smoothing)
     rsi_values = talib.RSI(closes, timeperiod=14)

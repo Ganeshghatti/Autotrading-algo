@@ -95,7 +95,6 @@ class KiteDataFetcher:
         
         # Configuration files
         self.config_file = "config.json"
-        self.config_last_modified = None
         self.is_config_change = False
         
         # Configuration
@@ -163,9 +162,6 @@ class KiteDataFetcher:
             with open(self.config_file, 'r') as f:
                 config = json.load(f)
             
-            # Update config last modified time
-            self.config_last_modified = os.path.getmtime(self.config_file)
-            
             # Load values from config
             self.instrument_symbol = config.get('instrument_symbol', 'BANKNIFTY').upper()
             self.exchange = config.get('exchange', 'NFO').upper()
@@ -197,23 +193,21 @@ class KiteDataFetcher:
             return False
     
     def check_config_changes(self):
-        """Check if config.json has been modified"""
+        """Check if config.json has is_changed flag set to true"""
         try:
             if not os.path.exists(self.config_file):
                 return False
             
-            current_modified = os.path.getmtime(self.config_file)
+            with open(self.config_file, 'r') as f:
+                config = json.load(f)
             
-            if self.config_last_modified is None:
-                self.config_last_modified = current_modified
-                return False
+            is_changed = config.get('is_changed', False)
             
-            if current_modified > self.config_last_modified:
+            if is_changed:
                 logger.info("="*80)
                 logger.info("🔄 CONFIG CHANGE DETECTED!")
                 logger.info(f"   File: {self.config_file}")
-                logger.info(f"   Previous: {datetime.fromtimestamp(self.config_last_modified).strftime('%Y-%m-%d %H:%M:%S')}")
-                logger.info(f"   Current: {datetime.fromtimestamp(current_modified).strftime('%Y-%m-%d %H:%M:%S')}")
+                logger.info(f"   Flag 'is_changed' = true")
                 logger.info("   Changes will be applied in next 5-minute interval")
                 logger.info("="*80)
                 self.is_config_change = True
@@ -223,6 +217,27 @@ class KiteDataFetcher:
             
         except Exception as e:
             logger.error(f"✗ Error checking config changes: {str(e)}")
+            return False
+    
+    def reset_config_change_flag(self):
+        """Reset is_changed flag to false in config.json after changes are applied"""
+        try:
+            if not os.path.exists(self.config_file):
+                return False
+            
+            with open(self.config_file, 'r') as f:
+                config = json.load(f)
+            
+            config['is_changed'] = False
+            
+            with open(self.config_file, 'w') as f:
+                json.dump(config, f, indent=4)
+            
+            logger.info("✓ Config 'is_changed' flag reset to false")
+            return True
+            
+        except Exception as e:
+            logger.error(f"✗ Error resetting config flag: {str(e)}")
             return False
     
     def apply_config_changes(self):
@@ -289,6 +304,9 @@ class KiteDataFetcher:
             
             # Reset flag
             self.is_config_change = False
+            
+            # Reset is_changed flag in config file (will be reset after first fetch)
+            # Don't reset here - wait for first fetch to complete
             return True
             
         except Exception as e:
@@ -305,7 +323,7 @@ class KiteDataFetcher:
         """
         try:
             logger.info(f"Fetching {self.instrument_symbol} futures instruments...")
-            instruments = self.kite.instruments("NFO")
+            instruments = self.kite.instruments(self.exchange)
             
             # Filter for specified symbol futures only
             futures = []
@@ -652,9 +670,18 @@ class KiteDataFetcher:
             try:
                 # Place opposite order to exit
                 exit_order_type = 'SELL' if trade['transaction_type'] == 'BUY' else 'BUY'
+                
+                # Determine exchange constant
+                exchange_map = {
+                    'NFO': self.kite.EXCHANGE_NFO,
+                    'NSE': self.kite.EXCHANGE_NSE,
+                    'MCX': self.kite.EXCHANGE_MCX
+                }
+                exchange_const = exchange_map.get(self.exchange, self.kite.EXCHANGE_NFO)
+                
                 order_id = self.kite.place_order(
                     variety=self.kite.VARIETY_REGULAR,
-                    exchange=self.kite.EXCHANGE_NFO if self.exchange == 'NFO' else self.kite.EXCHANGE_NSE,
+                    exchange=exchange_const,
                     tradingsymbol=self.tradingsymbol,
                     transaction_type=exit_order_type,
                     quantity=trade['quantity'],
@@ -892,9 +919,18 @@ class KiteDataFetcher:
             
             # Place order via Kite API
             logger.info(f"📡 Sending order to Kite API...")
+            
+            # Determine exchange constant
+            exchange_map = {
+                'NFO': self.kite.EXCHANGE_NFO,
+                'NSE': self.kite.EXCHANGE_NSE,
+                'MCX': self.kite.EXCHANGE_MCX
+            }
+            exchange_const = exchange_map.get(self.exchange, self.kite.EXCHANGE_NFO)
+            
             order_id = self.kite.place_order(
                 variety=self.kite.VARIETY_REGULAR,
-                exchange=self.kite.EXCHANGE_NFO if self.exchange == 'NFO' else self.kite.EXCHANGE_NSE,
+                exchange=exchange_const,
                 tradingsymbol=self.tradingsymbol,
                 transaction_type=trade_type,
                 quantity=self.quantity,
@@ -1356,10 +1392,13 @@ class KiteDataFetcher:
             self.check_config_changes()
             
             # Apply config changes if detected
+            config_was_changed = False
             if self.is_config_change:
                 logger.info("⚙️  Applying configuration changes before next data fetch...")
                 if not self.apply_config_changes():
                     logger.warning("⚠ Failed to apply config changes, continuing with existing config")
+                else:
+                    config_was_changed = True
             
             # Fetch historical data at aligned 5-minute interval
             logger.info(f"🔄 Starting data fetch at {datetime.now().strftime('%H:%M:%S')}")
@@ -1372,6 +1411,11 @@ class KiteDataFetcher:
                 continue
             
             logger.info(f"✓ Data fetch complete at {datetime.now().strftime('%H:%M:%S')}")
+            
+            # Reset is_changed flag in config after successful fetch (if config was changed)
+            if config_was_changed:
+                self.reset_config_change_flag()
+            
             logger.info("="*80)
             
             # Wait until next 5-minute interval (e.g., 9:15, 9:20, 9:25, etc.)

@@ -38,10 +38,22 @@ def register_trading_routes(app, kite):
             return error, 400
         return jsonify(result)
     
-    @app.route("/instruments", methods=["GET"])
+    @app.route("/instruments", methods=["GET", "POST"])
     def instruments_route():
-        exchange = request.args.get("exchange")  # Optional: NSE, NFO, etc.
-        result, error = get_instruments(kite, exchange)
+        # Support both GET (query params) and POST (body) for backward compatibility
+        if request.method == "POST":
+            data = request.get_json() or {}
+        else:
+            # GET method: extract from query parameters
+            data = {
+                "exchange": request.args.get("exchange"),
+                "symbol_name": request.args.get("symbol_name"),
+                "instrument_type": request.args.get("instrument_type")
+            }
+            # Remove None values
+            data = {k: v for k, v in data.items() if v is not None}
+        
+        result, error = get_instruments(kite, data if data else None)
         if error:
             return error, 400
         return jsonify(result)

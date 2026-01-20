@@ -95,7 +95,7 @@
               </svg>
               Exchange
               <span class="tooltip">ⓘ
-                <span class="tooltiptext">NSE (stocks) or NFO (futures/options)</span>
+                <span class="tooltiptext">NFO (index F&O), NSE (stocks), MCX (commodities)</span>
               </span>
             </label>
             <div class="input-wrapper">
@@ -104,8 +104,9 @@
                 name="exchange"
                 required
               >
-                <option value="NFO" {{ 'selected' if config.exchange == 'NFO' else '' }}>NFO (Futures & Options)</option>
-                <option value="NSE" {{ 'selected' if config.exchange == 'NSE' else '' }}>NSE (Stocks)</option>
+                <option value="NFO" {{ 'selected' if config.exchange == 'NFO' else '' }}>NFO (Index Futures & Options)</option>
+                <option value="NSE" {{ 'selected' if config.exchange == 'NSE' else '' }}>NSE (Equity Stocks)</option>
+                <option value="MCX" {{ 'selected' if config.exchange == 'MCX' else '' }}>MCX (Commodities)</option>
               </select>
               <svg class="input-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
