@@ -1013,7 +1013,9 @@ class KiteDataFetcher:
         """
         Complete trading logic:
         1. Skip first candle of day (9:15 AM)
-        2. Mark alert candle when RSI crosses 60 or 40 AND range < 40
+        2. Mark alert candle when RSI crosses levels AND range < high_low_diff
+           - OPTIONS (CE/PE): ONLY RSI > 60 (BUY only)
+           - FUTURES/EQUITY: RSI > 60 (BUY) OR RSI < 40 (SELL)
         3. On NEXT candle, check if price crosses alert candle trigger
         4. Place order if trigger is crossed
         """
@@ -1063,6 +1065,14 @@ class KiteDataFetcher:
         # Check for RSI crossover
         crossed_60_up = self.previous_rsi <= 60 and rsi > 60
         crossed_40_down = self.previous_rsi >= 40 and rsi < 40
+        
+        # For OPTIONS (CE/PE), only trade on RSI > 60, ignore RSI < 40
+        is_option = self.instrument_type in ['CE', 'PE']
+        if is_option and crossed_40_down:
+            logger.info(f"ℹ️  RSI CROSSED BELOW 40 - SKIPPED (Options only trade on RSI > 60)")
+            logger.info(f"   Previous RSI: {self.previous_rsi:.2f} | Current RSI: {rsi:.2f}")
+            logger.info(f"   Instrument Type: {self.instrument_type} (Option)")
+            crossed_40_down = False  # Disable sell signal for options
         
         # Log why no trade if no crossover
         if not crossed_60_up and not crossed_40_down:
