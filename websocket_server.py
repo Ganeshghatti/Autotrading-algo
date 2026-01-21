@@ -1399,6 +1399,14 @@ class KiteDataFetcher:
             if not connection_success or not self.is_connected:
                 logger.warning(f"⚠ Not connected. Retrying in {self.retry_interval} seconds...")
                 time.sleep(self.retry_interval)
+                
+                # Check for config changes BEFORE reconnection attempt
+                # This allows updating config even when stuck in retry loop
+                self.check_config_changes()
+                if self.is_config_change:
+                    logger.info("⚙️  Config changed detected during retry. Applying before reconnection...")
+                    self.apply_config_changes()
+                
                 connection_success = self.connect_to_kite()
                 
                 # If reconnection successful, wait for next 5-minute interval
