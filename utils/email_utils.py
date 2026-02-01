@@ -128,21 +128,24 @@ def send_trade_notification(trade_type, trade_data):
                 <li><strong>Target:</strong> ₹{trade_data.get('target', 'N/A')}</li>
             </ul>
             <hr>
-            <h3>📈 Alert Candle Info:</h3>
+            <h3>📈 Alert Candle (5-min OHLC):</h3>
             <ul>
-                <li><strong>Alert RSI:</strong> {trade_data.get('alert_rsi', 'N/A')}</li>
-                <li><strong>Alert High:</strong> ₹{trade_data.get('alert_high', 'N/A')}</li>
-                <li><strong>Alert Low:</strong> ₹{trade_data.get('alert_low', 'N/A')}</li>
+                <li><strong>Open:</strong> ₹{trade_data.get('alert_open', 'N/A')}</li>
+                <li><strong>High:</strong> ₹{trade_data.get('alert_high', 'N/A')}</li>
+                <li><strong>Low:</strong> ₹{trade_data.get('alert_low', 'N/A')}</li>
+                <li><strong>Close:</strong> ₹{trade_data.get('alert_close', 'N/A')}</li>
+                <li><strong>RSI:</strong> {trade_data.get('alert_rsi', 'N/A')}</li>
             </ul>
             <hr>
-            <h3>🔔 Entry Trigger Confirmation:</h3>
+            <h3>🔔 Entry Trigger (WebSocket Real-time):</h3>
             <ul>
-                <li><strong>Trigger LTP (BUY):</strong> ₹{trade_data.get('trigger_high', 'N/A')}</li>
-                <li><strong>Trigger LTP (SELL):</strong> ₹{trade_data.get('trigger_low', 'N/A')}</li>
-                <li><strong>Entry Price:</strong> ₹{trade_data.get('entry_price', 'N/A')}</li>
+                <li><strong>Trigger LTP:</strong> <span style="font-size: 18px; color: #e74c3c; font-weight: bold;">₹{trade_data.get('trigger_ltp', 'N/A')}</span></li>
+                <li><strong>Alert Threshold:</strong> ₹{trade_data.get('alert_high' if transaction_type == 'BUY' else 'alert_low', 'N/A')}</li>
+                <li><strong>Entry Confirmed:</strong> ✅ LTP crossed {"above Alert High" if transaction_type == 'BUY' else "below Alert Low"}</li>
             </ul>
-            <p style="color: #7f8c8d; font-size: 12px; margin-top: 10px;">
-                <em>For BUY: LTP crossed Alert High | For SELL: LTP crossed Alert Low</em>
+            <p style="background-color: #ecf0f1; padding: 10px; border-left: 4px solid #3498db; margin-top: 10px;">
+                <strong>Trigger Logic:</strong><br>
+                <em>{"🟢 BUY: WebSocket LTP > Alert Candle High" if transaction_type == 'BUY' else "🔴 SELL: WebSocket LTP < Alert Candle Low"}</em>
             </p>
         </body>
         </html>
