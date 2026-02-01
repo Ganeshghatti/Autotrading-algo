@@ -534,13 +534,10 @@ class KiteDataFetcher:
                     if tick['instrument_token'] == int(self.instrument_token):
                         self.last_tick_price = tick.get('last_price', 0)
                         last_traded_price = tick.get('last_price', 0)
-                        ohlc = tick.get('ohlc', {})
-                        current_high = ohlc.get('high', last_traded_price)
-                        current_low = ohlc.get('low', last_traded_price)
                         
                         # Check if we have a pending alert candle waiting for entry
                         if self.alert_candle and not self.open_trade:
-                            self.check_entry_trigger_realtime(last_traded_price, current_high, current_low)
+                            self.check_entry_trigger_realtime(last_traded_price)
                         
                         # Check if we have an open trade to monitor for SL/Target
                         if self.open_trade:
@@ -554,9 +551,9 @@ class KiteDataFetcher:
                 # Subscribe to instrument with FULL mode to get OHLC data
                 if self.instrument_token:
                     ws.subscribe([int(self.instrument_token)])
-                    ws.set_mode(ws.MODE_FULL, [int(self.instrument_token)])  # FULL mode for OHLC
+                    ws.set_mode(ws.MODE_FULL, [int(self.instrument_token)])  # FULL mode for complete tick data
                     logger.info(f"📡 Subscribed to {self.tradingsymbol} ({self.instrument_token})")
-                    logger.info(f"📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)")
+                    logger.info(f"📊 WebSocket Mode: FULL (real-time LTP for entry triggers)")
             
             def on_close(ws, code, reason):
                 """Callback when WebSocket closes"""
@@ -858,7 +855,7 @@ class KiteDataFetcher:
             logger.error(traceback.format_exc())
             return False
     
-    def place_paper_trade(self, trade_type, price, alert_candle, trigger_high=None, trigger_low=None):
+    def place_paper_trade(self, trade_type, price, alert_candle, trigger_ltp=None):
         """Place a paper trade (simulated)"""
         try:
             logger.info("="*80)
@@ -884,8 +881,7 @@ class KiteDataFetcher:
                 "alert_high": alert_candle.get('high'),
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
-                "trigger_high": trigger_high,  # Actual WebSocket high that crossed alert high
-                "trigger_low": trigger_low,    # Actual WebSocket low that crossed alert low
+                "trigger_ltp": trigger_ltp,  # Actual LTP that triggered the entry
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
                 "target": price + self.target if trade_type == "BUY" else price - self.target
             }
@@ -921,7 +917,7 @@ class KiteDataFetcher:
             logger.info("="*80)
             return None
     
-    def place_real_trade(self, trade_type, price, alert_candle, trigger_high=None, trigger_low=None):
+    def place_real_trade(self, trade_type, price, alert_candle, trigger_ltp=None):
         """Place a real trade via Kite API"""
         try:
             logger.info("="*80)
@@ -972,8 +968,7 @@ class KiteDataFetcher:
                 "alert_high": alert_candle.get('high'),
                 "alert_low": alert_candle.get('low'),
                 "alert_close": alert_candle.get('close'),
-                "trigger_high": trigger_high,  # Actual WebSocket high that crossed alert high
-                "trigger_low": trigger_low,    # Actual WebSocket low that crossed alert low
+                "trigger_ltp": trigger_ltp,  # Actual LTP that triggered the entry
                 "stop_loss": alert_candle.get('low') if trade_type == "BUY" else alert_candle.get('high'),
                 "target": price + self.target if trade_type == "BUY" else price - self.target
             }
@@ -1195,10 +1190,14 @@ class KiteDataFetcher:
         
         return False
     
-    def check_entry_trigger_realtime(self, ltp, current_high, current_low):
+    def check_entry_trigger_realtime(self, ltp):
         """
-        Check entry trigger using REAL-TIME WebSocket data
+        Check entry trigger using REAL-TIME WebSocket LTP
         Called from WebSocket on_ticks callback
+        
+        Entry Logic:
+        - BUY: LTP crosses ABOVE alert candle's HIGH
+        - SELL: LTP crosses BELOW alert candle's LOW
         """
         if not self.alert_candle:
             return
@@ -1206,40 +1205,38 @@ class KiteDataFetcher:
         alert = self.alert_candle
         
         if alert['type'] == 'BUY':
-            # BUY: Check if real-time HIGH crosses alert candle's HIGH
-            if current_high > alert['trigger_price']:
+            # BUY: Check if LTP crosses ABOVE alert candle's HIGH
+            if ltp > alert['trigger_price']:
                 logger.info("="*80)
                 logger.info(f"✅ ENTRY TRIGGER HIT (REAL-TIME)!")
-                logger.info(f"   WebSocket High: ₹{current_high:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current LTP: ₹{ltp:.2f}")
-                logger.info(f"   Entry Method: Real-time WebSocket")
+                logger.info(f"   LTP: ₹{ltp:.2f} > Alert High: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Entry Method: Real-time WebSocket (LTP-based)")
                 logger.info("="*80)
                 
-                # Place BUY order at current LTP with trigger high/low info
+                # Place BUY order at current LTP (trigger price = LTP that crossed)
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("BUY", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_paper_trade("BUY", ltp, alert, trigger_ltp=ltp)
                 else:  # real
-                    trade = self.place_real_trade("BUY", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_real_trade("BUY", ltp, alert, trigger_ltp=ltp)
                 
                 if trade:
                     self.open_trade = trade
                     self.alert_candle = None  # Clear alert candle
         
         elif alert['type'] == 'SELL':
-            # SELL: Check if real-time LOW crosses alert candle's LOW
-            if current_low < alert['trigger_price']:
+            # SELL: Check if LTP crosses BELOW alert candle's LOW
+            if ltp < alert['trigger_price']:
                 logger.info("="*80)
                 logger.info(f"✅ ENTRY TRIGGER HIT (REAL-TIME)!")
-                logger.info(f"   WebSocket Low: ₹{current_low:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
-                logger.info(f"   Current LTP: ₹{ltp:.2f}")
-                logger.info(f"   Entry Method: Real-time WebSocket")
+                logger.info(f"   LTP: ₹{ltp:.2f} < Alert Low: ₹{alert['trigger_price']:.2f}")
+                logger.info(f"   Entry Method: Real-time WebSocket (LTP-based)")
                 logger.info("="*80)
                 
-                # Place SELL order at current LTP with trigger high/low info
+                # Place SELL order at current LTP (trigger price = LTP that crossed)
                 if self.trading_enabled == "paper":
-                    trade = self.place_paper_trade("SELL", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_paper_trade("SELL", ltp, alert, trigger_ltp=ltp)
                 else:  # real
-                    trade = self.place_real_trade("SELL", ltp, alert, trigger_high=current_high, trigger_low=current_low)
+                    trade = self.place_real_trade("SELL", ltp, alert, trigger_ltp=ltp)
                 
                 if trade:
                     self.open_trade = trade
