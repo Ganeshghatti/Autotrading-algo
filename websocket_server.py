@@ -241,7 +241,13 @@ class KiteDataFetcher:
             return False
     
     def apply_config_changes(self):
-        """Apply configuration changes and reinitialize if needed"""
+        """Apply configuration changes and reinitialize if needed
+        
+        Returns:
+            tuple: (success: bool, data_fetched: bool)
+                - success: Whether config changes were applied successfully
+                - data_fetched: Whether fresh data was fetched (True if instrument changed)
+        """
         try:
             logger.info("="*80)
             logger.info("🔄 APPLYING CONFIGURATION CHANGES")
@@ -256,7 +262,7 @@ class KiteDataFetcher:
             if not self.load_config():
                 logger.error("✗ Failed to reload configuration")
                 self.is_config_change = False
-                return False
+                return (False, False)
             
             # Check if instrument changed (symbol, exchange, or type)
             instrument_changed = (
@@ -265,8 +271,17 @@ class KiteDataFetcher:
                 old_instrument_type != self.instrument_type
             )
             
+            data_was_fetched = False
+            
             if instrument_changed:
                 logger.info("📊 Instrument changed - re-fetching instrument details...")
+                logger.info(f"   Old: {old_symbol} ({old_instrument_type}) on {old_exchange}")
+                logger.info(f"   New: {self.instrument_symbol} ({self.instrument_type}) on {self.exchange}")
+                
+                # Clear alert and open trade from previous instrument
+                logger.info("🧹 Clearing alert candle and open trades from previous instrument...")
+                self.alert_candle = None
+                self.open_trade = None
                 
                 # Close existing WebSocket if connected
                 if self.ws_connected and self.kws:
@@ -281,21 +296,31 @@ class KiteDataFetcher:
                     if not self.get_current_month_futures():
                         logger.error("✗ Failed to fetch new futures instrument")
                         self.is_config_change = False
-                        return False
+                        return (False, False)
                 elif self.instrument_type in ['CE', 'PE']:
                     if not self.get_option_instrument():
                         logger.error("✗ Failed to fetch new options instrument")
                         self.is_config_change = False
-                        return False
+                        return (False, False)
                 elif self.instrument_type == 'EQ':
                     if not self.get_equity_instrument():
                         logger.error("✗ Failed to fetch new equity instrument")
                         self.is_config_change = False
-                        return False
+                        return (False, False)
                 
                 # Setup new WebSocket connection
                 if not self.setup_websocket():
                     logger.warning("⚠ WebSocket setup failed after config change")
+                
+                # CRITICAL: Fetch fresh historical data immediately for new instrument
+                logger.info("🔄 Fetching fresh historical data for new instrument...")
+                if not self.fetch_historical_data():
+                    logger.error("✗ Failed to fetch historical data for new instrument")
+                    self.is_config_change = False
+                    return (False, False)
+                
+                logger.info("✅ Fresh data fetched successfully for new instrument")
+                data_was_fetched = True
             else:
                 logger.info("📊 Instrument unchanged - keeping existing connection")
             
@@ -307,14 +332,14 @@ class KiteDataFetcher:
             
             # Reset is_changed flag in config file (will be reset after first fetch)
             # Don't reset here - wait for first fetch to complete
-            return True
+            return (True, data_was_fetched)
             
         except Exception as e:
             logger.error(f"✗ Error applying config changes: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             self.is_config_change = False
-            return False
+            return (False, False)
     
     def get_current_month_futures(self):
         """
@@ -1402,7 +1427,7 @@ class KiteDataFetcher:
                 self.check_config_changes()
                 if self.is_config_change:
                     logger.info("⚙️  Config changed detected during retry. Applying before reconnection...")
-                    self.apply_config_changes()
+                    success, _ = self.apply_config_changes()  # Ignore data_fetched return value during retry
                 
                 connection_success = self.connect_to_kite()
                 
@@ -1419,24 +1444,32 @@ class KiteDataFetcher:
             
             # Apply config changes if detected
             config_was_changed = False
+            data_already_fetched = False
             if self.is_config_change:
                 logger.info("⚙️  Applying configuration changes before next data fetch...")
-                if not self.apply_config_changes():
+                success, data_fetched = self.apply_config_changes()
+                if not success:
                     logger.warning("⚠ Failed to apply config changes, continuing with existing config")
                 else:
                     config_was_changed = True
+                    data_already_fetched = data_fetched
+                    if data_fetched:
+                        logger.info("✅ Fresh data already fetched for new instrument - skipping duplicate fetch")
             
-            # Fetch historical data at aligned 5-minute interval
-            logger.info(f"🔄 Starting data fetch at {datetime.now().strftime('%H:%M:%S')}")
-            fetch_success = self.fetch_historical_data()
-            
-            if not fetch_success:
-                logger.warning("⚠ Data fetch failed. Connection might be lost.")
-                self.is_connected = False
-                connection_success = False
-                continue
-            
-            logger.info(f"✓ Data fetch complete at {datetime.now().strftime('%H:%M:%S')}")
+            # Fetch historical data at aligned 5-minute interval (skip if already fetched during config change)
+            if not data_already_fetched:
+                logger.info(f"🔄 Starting data fetch at {datetime.now().strftime('%H:%M:%S')}")
+                fetch_success = self.fetch_historical_data()
+                
+                if not fetch_success:
+                    logger.warning("⚠ Data fetch failed. Connection might be lost.")
+                    self.is_connected = False
+                    connection_success = False
+                    continue
+                
+                logger.info(f"✓ Data fetch complete at {datetime.now().strftime('%H:%M:%S')}")
+            else:
+                logger.info(f"⏭️  Skipping redundant data fetch (already fetched during config change)")
             
             # Reset is_changed flag in config after successful fetch (if config was changed)
             if config_was_changed:

@@ -1,1068 +1,185 @@
-2026-01-20 10:11:49,487 - INFO - ================================================================================
-2026-01-20 10:11:49,487 - INFO - Initializing Kite Data Fetcher Server
-2026-01-20 10:11:49,487 - INFO - ================================================================================
-2026-01-20 10:11:49,487 - INFO - Loading environment variables from .env file
-2026-01-20 10:11:49,488 - INFO - API_KEY loaded: lo8381a8...
-2026-01-20 10:11:49,488 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 10:11:49,488 - INFO - ✓ Configuration loaded successfully
-2026-01-20 10:11:49,488 - INFO -   📈 Instrument: BANKNIFTY26JAN59300PE
-2026-01-20 10:11:49,488 - INFO -   🏢 Exchange: NFO
-2026-01-20 10:11:49,488 - INFO -   📊 Type: PE
-2026-01-20 10:11:49,488 - INFO -   📏 High-Low Diff: 35.0
-2026-01-20 10:11:49,488 - INFO -   🎯 Target: 10.0
-2026-01-20 10:11:49,488 - INFO -   📦 Lots: 2
-2026-01-20 10:11:49,488 - INFO -   📦 Lot Size: 30
-2026-01-20 10:11:49,488 - INFO -   📦 Total Quantity: 60
-2026-01-20 10:11:49,488 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 10:11:49,488 - INFO - 📊 Trading Mode: PAPER
-2026-01-20 10:11:49,488 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-20 10:11:49,488 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-20 10:11:49,488 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-20 10:11:49,488 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-20 10:11:49,488 - INFO - 📁 Trades Log File: trades.json
-2026-01-20 10:11:49,488 - INFO - 📧 Email Notifications: Enabled
-2026-01-20 10:11:49,488 - INFO - ================================================================================
-2026-01-20 10:11:49,488 - INFO - ================================================================================
-2026-01-20 10:11:49,488 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-20 10:11:49,488 - INFO - ================================================================================
-2026-01-20 10:11:49,488 - INFO - Attempting to connect to Kite API...
-2026-01-20 10:11:49,488 - INFO - Reading access token from file: access_token.txt
-2026-01-20 10:11:49,488 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 10:11:49,488 - INFO - Initializing KiteConnect instance
-2026-01-20 10:11:49,488 - INFO - Setting access token
-2026-01-20 10:11:49,488 - INFO - Fetching PE instrument...
-2026-01-20 10:11:49,488 - INFO - Fetching option instrument: BANKNIFTY26JAN59300PE...
-2026-01-20 10:11:50,141 - INFO - ✓ Selected Option: BANKNIFTY26JAN59300PE
-2026-01-20 10:11:50,141 - INFO -   Instrument Token: 13300482
-2026-01-20 10:11:50,141 - INFO -   Strike: 59300.0
-2026-01-20 10:11:50,141 - INFO -   Expiry: 2026-01-27
-2026-01-20 10:11:50,141 - INFO -   Lot Size: 30 units per lot
-2026-01-20 10:11:50,141 - INFO -   Trading: 2 lot(s) = 60 units
-2026-01-20 10:11:50,146 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-20 10:11:50,259 - INFO - ✓ WebSocket connected successfully
-2026-01-20 10:11:50,259 - INFO - 📡 Subscribed to BANKNIFTY26JAN59300PE (13300482)
-2026-01-20 10:11:50,259 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-20 10:11:52,151 - INFO - ✓ WebSocket setup complete
-2026-01-20 10:11:52,151 - INFO - ✓ Kite API connection established successfully
-2026-01-20 10:11:52,151 - INFO - ⏰ Current time: 10:11:52
-2026-01-20 10:11:52,151 - INFO - ⏰ Next candle completes at: 10:15:00
-2026-01-20 10:11:52,151 - INFO - ⏰ Will fetch at: 10:15:10 (+10s delay)
-2026-01-20 10:11:52,152 - INFO - ⏰ Waiting 197 seconds...
-2026-01-20 10:11:52,152 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-20 10:15:10,006 - INFO - 🔄 Starting data fetch at 10:15:10
-2026-01-20 10:15:10,007 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:15:10,007 - INFO - Starting historical data fetch...
-2026-01-20 10:15:10,007 - INFO - Instrument Token (int): 13300482
-2026-01-20 10:15:10,007 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 10:15:10,008 - INFO - From: 2026-01-10 10:15:10
-2026-01-20 10:15:10,008 - INFO - To: 2026-01-20 10:15:10
-2026-01-20 10:15:10,008 - INFO - Interval: 5minute
-2026-01-20 10:15:10,008 - INFO - Calling Kite API for historical data...
-2026-01-20 10:15:10,085 - INFO - ✓ Received 388 candles from API
-2026-01-20 10:15:10,085 - INFO - ℹ️  Excluding current candle (still forming) - using 387 complete candles
-2026-01-20 10:15:10,085 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 10:15:10,092 - INFO - 📊 Latest RSI: 59.15
-2026-01-20 10:15:10,092 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 10:15:10,092 - INFO - 📅 Data range: 2026-01-19 15:20 to 2026-01-20 10:10
-2026-01-20 10:15:10,092 - INFO - Processing candle data with RSI...
-2026-01-20 10:15:10,092 - INFO - 🔍 Checking order conditions...
-2026-01-20 10:15:10,092 - INFO - ℹ️  TRADE SKIPPED - RSI not available or first calculation
-2026-01-20 10:15:10,092 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 10:15:10,093 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 10:15:10,093 - INFO - File size: 2320 bytes
-2026-01-20 10:15:10,093 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:15:10,093 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 10:15:10,093 - INFO -   🕐 Date: 2026-01-20T10:10:00+05:30
-2026-01-20 10:15:10,093 - INFO -   💹 Open: 191.25
-2026-01-20 10:15:10,093 - INFO -   ⬆️  High: 200.1
-2026-01-20 10:15:10,093 - INFO -   ⬇️  Low: 184
-2026-01-20 10:15:10,093 - INFO -   💵 Close: 196.85
-2026-01-20 10:15:10,093 - INFO -   📦 Volume: 25290
-2026-01-20 10:15:10,093 - INFO -   📈 RSI: 59.151433762533465
-2026-01-20 10:15:10,093 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:15:10,093 - INFO - ✓ Data fetch complete at 10:15:10
-2026-01-20 10:15:10,093 - INFO - ================================================================================
-2026-01-20 10:15:10,093 - INFO - ⏰ Current time: 10:15:10
-2026-01-20 10:15:10,093 - INFO - ⏰ Next candle completes at: 10:20:00
-2026-01-20 10:15:10,093 - INFO - ⏰ Will fetch at: 10:20:10 (+10s delay)
-2026-01-20 10:15:10,093 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 10:20:10,007 - INFO - 🔄 Starting data fetch at 10:20:10
-2026-01-20 10:20:10,007 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:20:10,007 - INFO - Starting historical data fetch...
-2026-01-20 10:20:10,007 - INFO - Instrument Token (int): 13300482
-2026-01-20 10:20:10,007 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 10:20:10,007 - INFO - From: 2026-01-10 10:20:10
-2026-01-20 10:20:10,007 - INFO - To: 2026-01-20 10:20:10
-2026-01-20 10:20:10,007 - INFO - Interval: 5minute
-2026-01-20 10:20:10,007 - INFO - Calling Kite API for historical data...
-2026-01-20 10:20:10,164 - INFO - ✓ Received 389 candles from API
-2026-01-20 10:20:10,164 - INFO - ℹ️  Excluding current candle (still forming) - using 388 complete candles
-2026-01-20 10:20:10,164 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 10:20:10,168 - INFO - 📊 Latest RSI: 55.07
-2026-01-20 10:20:10,168 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 10:20:10,168 - INFO - 📅 Data range: 2026-01-19 15:25 to 2026-01-20 10:15
-2026-01-20 10:20:10,168 - INFO - Processing candle data with RSI...
-2026-01-20 10:20:10,168 - INFO - 🔍 Checking order conditions...
-2026-01-20 10:20:10,168 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-20 10:20:10,168 - INFO -    Previous RSI: 59.15 | Current RSI: 55.07
-2026-01-20 10:20:10,168 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-20 10:20:10,169 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 10:20:10,169 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 10:20:10,169 - INFO - File size: 2318 bytes
-2026-01-20 10:20:10,169 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:20:10,169 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 10:20:10,169 - INFO -   🕐 Date: 2026-01-20T10:15:00+05:30
-2026-01-20 10:20:10,169 - INFO -   💹 Open: 196.85
-2026-01-20 10:20:10,169 - INFO -   ⬆️  High: 203.1
-2026-01-20 10:20:10,169 - INFO -   ⬇️  Low: 188
-2026-01-20 10:20:10,169 - INFO -   💵 Close: 190.55
-2026-01-20 10:20:10,169 - INFO -   📦 Volume: 27540
-2026-01-20 10:20:10,169 - INFO -   📈 RSI: 55.07367606648154
-2026-01-20 10:20:10,169 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:20:10,170 - INFO - ✓ Data fetch complete at 10:20:10
-2026-01-20 10:20:10,170 - INFO - ================================================================================
-2026-01-20 10:20:10,170 - INFO - ⏰ Current time: 10:20:10
-2026-01-20 10:20:10,170 - INFO - ⏰ Next candle completes at: 10:25:00
-2026-01-20 10:20:10,170 - INFO - ⏰ Will fetch at: 10:25:10 (+10s delay)
-2026-01-20 10:20:10,170 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 10:25:10,005 - INFO - 🔄 Starting data fetch at 10:25:10
-2026-01-20 10:25:10,005 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:25:10,005 - INFO - Starting historical data fetch...
-2026-01-20 10:25:10,005 - INFO - Instrument Token (int): 13300482
-2026-01-20 10:25:10,005 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 10:25:10,006 - INFO - From: 2026-01-10 10:25:10
-2026-01-20 10:25:10,006 - INFO - To: 2026-01-20 10:25:10
-2026-01-20 10:25:10,006 - INFO - Interval: 5minute
-2026-01-20 10:25:10,006 - INFO - Calling Kite API for historical data...
-2026-01-20 10:25:10,096 - INFO - ✓ Received 390 candles from API
-2026-01-20 10:25:10,096 - INFO - ℹ️  Excluding current candle (still forming) - using 389 complete candles
-2026-01-20 10:25:10,096 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 10:25:10,099 - INFO - 📊 Latest RSI: 55.18
-2026-01-20 10:25:10,099 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 10:25:10,099 - INFO - 📅 Data range: 2026-01-20 09:15 to 2026-01-20 10:20
-2026-01-20 10:25:10,099 - INFO - Processing candle data with RSI...
-2026-01-20 10:25:10,099 - INFO - 🔍 Checking order conditions...
-2026-01-20 10:25:10,099 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-20 10:25:10,099 - INFO -    Previous RSI: 55.07 | Current RSI: 55.18
-2026-01-20 10:25:10,099 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-20 10:25:10,099 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 10:25:10,100 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 10:25:10,100 - INFO - File size: 2322 bytes
-2026-01-20 10:25:10,100 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:25:10,100 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 10:25:10,100 - INFO -   🕐 Date: 2026-01-20T10:20:00+05:30
-2026-01-20 10:25:10,100 - INFO -   💹 Open: 190.55
-2026-01-20 10:25:10,100 - INFO -   ⬆️  High: 195.15
-2026-01-20 10:25:10,100 - INFO -   ⬇️  Low: 185.1
-2026-01-20 10:25:10,100 - INFO -   💵 Close: 190.75
-2026-01-20 10:25:10,100 - INFO -   📦 Volume: 16050
-2026-01-20 10:25:10,100 - INFO -   📈 RSI: 55.179311299638975
-2026-01-20 10:25:10,100 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:25:10,100 - INFO - ✓ Data fetch complete at 10:25:10
-2026-01-20 10:25:10,100 - INFO - ================================================================================
-2026-01-20 10:25:10,100 - INFO - ⏰ Current time: 10:25:10
-2026-01-20 10:25:10,100 - INFO - ⏰ Next candle completes at: 10:30:00
-2026-01-20 10:25:10,101 - INFO - ⏰ Will fetch at: 10:30:10 (+10s delay)
-2026-01-20 10:25:10,101 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 10:30:10,006 - INFO - 🔄 Starting data fetch at 10:30:10
-2026-01-20 10:30:10,006 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:30:10,007 - INFO - Starting historical data fetch...
-2026-01-20 10:30:10,007 - INFO - Instrument Token (int): 13300482
-2026-01-20 10:30:10,008 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 10:30:10,008 - INFO - From: 2026-01-10 10:30:10
-2026-01-20 10:30:10,008 - INFO - To: 2026-01-20 10:30:10
-2026-01-20 10:30:10,008 - INFO - Interval: 5minute
-2026-01-20 10:30:10,008 - INFO - Calling Kite API for historical data...
-2026-01-20 10:30:10,126 - INFO - ✓ Received 391 candles from API
-2026-01-20 10:30:10,126 - INFO - ℹ️  Excluding current candle (still forming) - using 390 complete candles
-2026-01-20 10:30:10,126 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 10:30:10,130 - INFO - 📊 Latest RSI: 56.39
-2026-01-20 10:30:10,130 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 10:30:10,130 - INFO - 📅 Data range: 2026-01-20 09:20 to 2026-01-20 10:25
-2026-01-20 10:30:10,130 - INFO - Processing candle data with RSI...
-2026-01-20 10:30:10,130 - INFO - 🔍 Checking order conditions...
-2026-01-20 10:30:10,130 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-20 10:30:10,130 - INFO -    Previous RSI: 55.18 | Current RSI: 56.39
-2026-01-20 10:30:10,130 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-20 10:30:10,130 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 10:30:10,131 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 10:30:10,131 - INFO - File size: 2323 bytes
-2026-01-20 10:30:10,131 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:30:10,131 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 10:30:10,131 - INFO -   🕐 Date: 2026-01-20T10:25:00+05:30
-2026-01-20 10:30:10,131 - INFO -   💹 Open: 190.75
-2026-01-20 10:30:10,131 - INFO -   ⬆️  High: 198.35
-2026-01-20 10:30:10,131 - INFO -   ⬇️  Low: 188.2
-2026-01-20 10:30:10,131 - INFO -   💵 Close: 192.95
-2026-01-20 10:30:10,131 - INFO -   📦 Volume: 12150
-2026-01-20 10:30:10,131 - INFO -   📈 RSI: 56.39390895049342
-2026-01-20 10:30:10,131 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:30:10,131 - INFO - ✓ Data fetch complete at 10:30:10
-2026-01-20 10:30:10,131 - INFO - ================================================================================
-2026-01-20 10:30:10,132 - INFO - ⏰ Current time: 10:30:10
-2026-01-20 10:30:10,132 - INFO - ⏰ Next candle completes at: 10:35:00
-2026-01-20 10:30:10,132 - INFO - ⏰ Will fetch at: 10:35:10 (+10s delay)
-2026-01-20 10:30:10,132 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 10:35:10,006 - INFO - 🔄 Starting data fetch at 10:35:10
-2026-01-20 10:35:10,006 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:35:10,007 - INFO - Starting historical data fetch...
-2026-01-20 10:35:10,007 - INFO - Instrument Token (int): 13300482
-2026-01-20 10:35:10,007 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 10:35:10,007 - INFO - From: 2026-01-10 10:35:10
-2026-01-20 10:35:10,007 - INFO - To: 2026-01-20 10:35:10
-2026-01-20 10:35:10,007 - INFO - Interval: 5minute
-2026-01-20 10:35:10,007 - INFO - Calling Kite API for historical data...
-2026-01-20 10:35:10,104 - INFO - ✓ Received 392 candles from API
-2026-01-20 10:35:10,105 - INFO - ℹ️  Excluding current candle (still forming) - using 391 complete candles
-2026-01-20 10:35:10,105 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 10:35:10,108 - INFO - 📊 Latest RSI: 58.36
-2026-01-20 10:35:10,108 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 10:35:10,108 - INFO - 📅 Data range: 2026-01-20 09:25 to 2026-01-20 10:30
-2026-01-20 10:35:10,108 - INFO - Processing candle data with RSI...
-2026-01-20 10:35:10,108 - INFO - 🔍 Checking order conditions...
-2026-01-20 10:35:10,108 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-20 10:35:10,108 - INFO -    Previous RSI: 56.39 | Current RSI: 58.36
-2026-01-20 10:35:10,108 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-20 10:35:10,108 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 10:35:10,110 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 10:35:10,110 - INFO - File size: 2322 bytes
-2026-01-20 10:35:10,110 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:35:10,110 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 10:35:10,110 - INFO -   🕐 Date: 2026-01-20T10:30:00+05:30
-2026-01-20 10:35:10,110 - INFO -   💹 Open: 192.95
-2026-01-20 10:35:10,110 - INFO -   ⬆️  High: 198.05
-2026-01-20 10:35:10,110 - INFO -   ⬇️  Low: 191.5
-2026-01-20 10:35:10,110 - INFO -   💵 Close: 196.5
-2026-01-20 10:35:10,110 - INFO -   📦 Volume: 8730
-2026-01-20 10:35:10,110 - INFO -   📈 RSI: 58.35504043359174
-2026-01-20 10:35:10,110 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:35:10,111 - INFO - ✓ Data fetch complete at 10:35:10
-2026-01-20 10:35:10,111 - INFO - ================================================================================
-2026-01-20 10:35:10,111 - INFO - ⏰ Current time: 10:35:10
-2026-01-20 10:35:10,111 - INFO - ⏰ Next candle completes at: 10:40:00
-2026-01-20 10:35:10,111 - INFO - ⏰ Will fetch at: 10:40:10 (+10s delay)
-2026-01-20 10:35:10,111 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 10:45:21,187 - INFO - 🔄 Starting data fetch at 10:45:21
-2026-01-20 10:45:21,189 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:45:21,189 - INFO - Starting historical data fetch...
-2026-01-20 10:45:21,189 - INFO - Instrument Token (int): 13300482
-2026-01-20 10:45:21,189 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 10:45:21,189 - INFO - From: 2026-01-10 10:45:21
-2026-01-20 10:45:21,189 - INFO - To: 2026-01-20 10:45:21
-2026-01-20 10:45:21,189 - INFO - Interval: 5minute
-2026-01-20 10:45:21,189 - INFO - Calling Kite API for historical data...
-2026-01-20 10:45:21,214 - ERROR - ✗ Error fetching historical data: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
-2026-01-20 10:45:21,215 - ERROR - Error type: ConnectionError
-2026-01-20 10:45:21,228 - ERROR - Traceback: Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 787, in urlopen
-    response = self._make_request(
-        conn,
-    ...<10 lines>...
-        **response_kw,
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 534, in _make_request
-    response = conn.getresponse()
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connection.py", line 571, in getresponse
-    httplib_response = super().getresponse()
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1450, in getresponse
-    response.begin()
-    ~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 336, in begin
-    version, status, reason = self._read_status()
-                              ~~~~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 297, in _read_status
-    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
-               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socket.py", line 725, in readinto
-    return self._sock.recv_into(b)
-           ~~~~~~~~~~~~~~~~~~~~^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1304, in recv_into
-    return self.read(nbytes, buffer)
-           ~~~~~~~~~^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1138, in read
-    return self._sslobj.read(len, buffer)
-           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-ConnectionResetError: [Errno 54] Connection reset by peer
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/adapters.py", line 644, in send
-    resp = conn.urlopen(
-        method=request.method,
-    ...<9 lines>...
-        chunked=chunked,
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 841, in urlopen
-    retries = retries.increment(
-        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/util/retry.py", line 490, in increment
-    raise reraise(type(error), error, _stacktrace)
-          ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/util/util.py", line 38, in reraise
-    raise value.with_traceback(tb)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 787, in urlopen
-    response = self._make_request(
-        conn,
-    ...<10 lines>...
-        **response_kw,
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 534, in _make_request
-    response = conn.getresponse()
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connection.py", line 571, in getresponse
-    httplib_response = super().getresponse()
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1450, in getresponse
-    response.begin()
-    ~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 336, in begin
-    version, status, reason = self._read_status()
-                              ~~~~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 297, in _read_status
-    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
-               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socket.py", line 725, in readinto
-    return self._sock.recv_into(b)
-           ~~~~~~~~~~~~~~~~~~~~^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1304, in recv_into
-    return self.read(nbytes, buffer)
-           ~~~~~~~~~^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1138, in read
-    return self._sslobj.read(len, buffer)
-           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1219, in fetch_historical_data
-    historical_data = self.kite.historical_data(
-        instrument_token=instrument_token,
-    ...<2 lines>...
-        interval="5minute"
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 632, in historical_data
-    data = self._get("market.historical",
-                     url_args={"instrument_token": instrument_token, "interval": interval},
-    ...<5 lines>...
-                         "oi": 1 if oi else 0
-                     })
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 861, in _get
-    return self._request(route, "GET", url_args=url_args, params=params, is_json=is_json)
-           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 916, in _request
-    raise e
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 904, in _request
-    r = self.reqsession.request(method,
-                                url,
-    ...<6 lines>...
-                                timeout=self.timeout,
-                                proxies=self.proxies)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/sessions.py", line 589, in request
-    resp = self.send(prep, **send_kwargs)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/sessions.py", line 703, in send
-    r = adapter.send(request, **kwargs)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/adapters.py", line 659, in send
-    raise ConnectionError(err, request=request)
-requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
-
-2026-01-20 10:45:21,229 - WARNING - ⚠ Data fetch failed. Connection might be lost.
-2026-01-20 10:45:21,229 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 10:50:21,235 - INFO - Attempting to connect to Kite API...
-2026-01-20 10:50:21,236 - INFO - Reading access token from file: access_token.txt
-2026-01-20 10:50:21,237 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 10:50:21,237 - INFO - Initializing KiteConnect instance
-2026-01-20 10:50:21,238 - INFO - Setting access token
-2026-01-20 10:50:21,238 - INFO - Fetching PE instrument...
-2026-01-20 10:50:21,238 - INFO - Fetching option instrument: BANKNIFTY26JAN59300PE...
-2026-01-20 10:50:22,087 - INFO - ✓ Selected Option: BANKNIFTY26JAN59300PE
-2026-01-20 10:50:22,087 - INFO -   Instrument Token: 13300482
-2026-01-20 10:50:22,087 - INFO -   Strike: 59300.0
-2026-01-20 10:50:22,088 - INFO -   Expiry: 2026-01-27
-2026-01-20 10:50:22,088 - INFO -   Lot Size: 30 units per lot
-2026-01-20 10:50:22,088 - INFO -   Trading: 2 lot(s) = 60 units
-2026-01-20 10:50:22,092 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-20 10:50:23,382 - INFO - ✓ WebSocket connected successfully
-2026-01-20 10:50:23,383 - INFO - 📡 Subscribed to BANKNIFTY26JAN59300PE (13300482)
-2026-01-20 10:50:23,383 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-20 10:50:24,098 - INFO - ✓ WebSocket setup complete
-2026-01-20 10:50:24,098 - INFO - ✓ Kite API connection established successfully
-2026-01-20 10:50:24,098 - INFO - ⏰ Current time: 10:50:24
-2026-01-20 10:50:24,099 - INFO - ⏰ Next candle completes at: 10:55:00
-2026-01-20 10:50:24,099 - INFO - ⏰ Will fetch at: 10:55:10 (+10s delay)
-2026-01-20 10:50:24,099 - INFO - ⏰ Waiting 285 seconds...
-2026-01-20 10:50:24,099 - INFO - ⏳ Reconnected! Waiting for next 5-minute interval before fetching...
-2026-01-20 10:55:10,007 - INFO - 🔄 Starting data fetch at 10:55:10
-2026-01-20 10:55:10,008 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:55:10,008 - INFO - Starting historical data fetch...
-2026-01-20 10:55:10,008 - INFO - Instrument Token (int): 13300482
-2026-01-20 10:55:10,008 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 10:55:10,008 - INFO - From: 2026-01-10 10:55:10
-2026-01-20 10:55:10,008 - INFO - To: 2026-01-20 10:55:10
-2026-01-20 10:55:10,008 - INFO - Interval: 5minute
-2026-01-20 10:55:10,008 - INFO - Calling Kite API for historical data...
-2026-01-20 10:55:10,094 - INFO - ✓ Received 396 candles from API
-2026-01-20 10:55:10,094 - INFO - ℹ️  Excluding current candle (still forming) - using 395 complete candles
-2026-01-20 10:55:10,094 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 10:55:10,099 - INFO - 📊 Latest RSI: 54.28
-2026-01-20 10:55:10,099 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 10:55:10,099 - INFO - 📅 Data range: 2026-01-20 09:45 to 2026-01-20 10:50
-2026-01-20 10:55:10,099 - INFO - Processing candle data with RSI...
-2026-01-20 10:55:10,099 - INFO - 🔍 Checking order conditions...
-2026-01-20 10:55:10,099 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-20 10:55:10,099 - INFO -    Previous RSI: 58.36 | Current RSI: 54.28
-2026-01-20 10:55:10,099 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-20 10:55:10,099 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 10:55:10,099 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 10:55:10,100 - INFO - File size: 2318 bytes
-2026-01-20 10:55:10,100 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:55:10,100 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 10:55:10,100 - INFO -   🕐 Date: 2026-01-20T10:50:00+05:30
-2026-01-20 10:55:10,100 - INFO -   💹 Open: 186.9
-2026-01-20 10:55:10,100 - INFO -   ⬆️  High: 193.75
-2026-01-20 10:55:10,100 - INFO -   ⬇️  Low: 186.4
-2026-01-20 10:55:10,100 - INFO -   💵 Close: 191.6
-2026-01-20 10:55:10,100 - INFO -   📦 Volume: 3750
-2026-01-20 10:55:10,100 - INFO -   📈 RSI: 54.27721737192521
-2026-01-20 10:55:10,100 - INFO - --------------------------------------------------------------------------------
-2026-01-20 10:55:10,100 - INFO - ✓ Data fetch complete at 10:55:10
-2026-01-20 10:55:10,100 - INFO - ================================================================================
-2026-01-20 10:55:10,100 - INFO - ⏰ Current time: 10:55:10
-2026-01-20 10:55:10,100 - INFO - ⏰ Next candle completes at: 11:00:00
-2026-01-20 10:55:10,100 - INFO - ⏰ Will fetch at: 11:00:10 (+10s delay)
-2026-01-20 10:55:10,100 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 11:00:10,006 - INFO - 🔄 Starting data fetch at 11:00:10
-2026-01-20 11:00:10,007 - INFO - --------------------------------------------------------------------------------
-2026-01-20 11:00:10,008 - INFO - Starting historical data fetch...
-2026-01-20 11:00:10,008 - INFO - Instrument Token (int): 13300482
-2026-01-20 11:00:10,008 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 11:00:10,008 - INFO - From: 2026-01-10 11:00:10
-2026-01-20 11:00:10,008 - INFO - To: 2026-01-20 11:00:10
-2026-01-20 11:00:10,008 - INFO - Interval: 5minute
-2026-01-20 11:00:10,008 - INFO - Calling Kite API for historical data...
-2026-01-20 11:00:10,097 - INFO - ✓ Received 397 candles from API
-2026-01-20 11:00:10,097 - INFO - ℹ️  Excluding current candle (still forming) - using 396 complete candles
-2026-01-20 11:00:10,097 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 11:00:10,100 - INFO - 📊 Latest RSI: 57.38
-2026-01-20 11:00:10,100 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 11:00:10,100 - INFO - 📅 Data range: 2026-01-20 09:50 to 2026-01-20 10:55
-2026-01-20 11:00:10,100 - INFO - Processing candle data with RSI...
-2026-01-20 11:00:10,100 - INFO - 🔍 Checking order conditions...
-2026-01-20 11:00:10,100 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-20 11:00:10,100 - INFO -    Previous RSI: 54.28 | Current RSI: 57.38
-2026-01-20 11:00:10,100 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-20 11:00:10,100 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 11:00:10,101 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 11:00:10,101 - INFO - File size: 2320 bytes
-2026-01-20 11:00:10,101 - INFO - --------------------------------------------------------------------------------
-2026-01-20 11:00:10,101 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 11:00:10,101 - INFO -   🕐 Date: 2026-01-20T10:55:00+05:30
-2026-01-20 11:00:10,101 - INFO -   💹 Open: 191.6
-2026-01-20 11:00:10,101 - INFO -   ⬆️  High: 203
-2026-01-20 11:00:10,101 - INFO -   ⬇️  Low: 190.95
-2026-01-20 11:00:10,101 - INFO -   💵 Close: 196.75
-2026-01-20 11:00:10,101 - INFO -   📦 Volume: 21480
-2026-01-20 11:00:10,101 - INFO -   📈 RSI: 57.37876304328646
-2026-01-20 11:00:10,101 - INFO - --------------------------------------------------------------------------------
-2026-01-20 11:00:10,101 - INFO - ✓ Data fetch complete at 11:00:10
-2026-01-20 11:00:10,101 - INFO - ================================================================================
-2026-01-20 11:00:10,101 - INFO - ⏰ Current time: 11:00:10
-2026-01-20 11:00:10,101 - INFO - ⏰ Next candle completes at: 11:05:00
-2026-01-20 11:00:10,101 - INFO - ⏰ Will fetch at: 11:05:10 (+10s delay)
-2026-01-20 11:00:10,101 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 11:12:56,181 - INFO - 🔄 Starting data fetch at 11:12:56
-2026-01-20 11:12:56,183 - INFO - --------------------------------------------------------------------------------
-2026-01-20 11:12:56,183 - INFO - Starting historical data fetch...
-2026-01-20 11:12:56,183 - INFO - Instrument Token (int): 13300482
-2026-01-20 11:12:56,183 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 11:12:56,183 - INFO - From: 2026-01-10 11:12:56
-2026-01-20 11:12:56,183 - INFO - To: 2026-01-20 11:12:56
-2026-01-20 11:12:56,183 - INFO - Interval: 5minute
-2026-01-20 11:12:56,183 - INFO - Calling Kite API for historical data...
-2026-01-20 11:12:56,204 - ERROR - ✗ Error fetching historical data: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
-2026-01-20 11:12:56,204 - ERROR - Error type: ConnectionError
-2026-01-20 11:12:56,209 - ERROR - Traceback: Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 787, in urlopen
-    response = self._make_request(
-        conn,
-    ...<10 lines>...
-        **response_kw,
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 534, in _make_request
-    response = conn.getresponse()
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connection.py", line 571, in getresponse
-    httplib_response = super().getresponse()
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1450, in getresponse
-    response.begin()
-    ~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 336, in begin
-    version, status, reason = self._read_status()
-                              ~~~~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 297, in _read_status
-    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
-               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socket.py", line 725, in readinto
-    return self._sock.recv_into(b)
-           ~~~~~~~~~~~~~~~~~~~~^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1304, in recv_into
-    return self.read(nbytes, buffer)
-           ~~~~~~~~~^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1138, in read
-    return self._sslobj.read(len, buffer)
-           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-ConnectionResetError: [Errno 54] Connection reset by peer
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/adapters.py", line 644, in send
-    resp = conn.urlopen(
-        method=request.method,
-    ...<9 lines>...
-        chunked=chunked,
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 841, in urlopen
-    retries = retries.increment(
-        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/util/retry.py", line 490, in increment
-    raise reraise(type(error), error, _stacktrace)
-          ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/util/util.py", line 38, in reraise
-    raise value.with_traceback(tb)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 787, in urlopen
-    response = self._make_request(
-        conn,
-    ...<10 lines>...
-        **response_kw,
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connectionpool.py", line 534, in _make_request
-    response = conn.getresponse()
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/urllib3/connection.py", line 571, in getresponse
-    httplib_response = super().getresponse()
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 1450, in getresponse
-    response.begin()
-    ~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 336, in begin
-    version, status, reason = self._read_status()
-                              ~~~~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/client.py", line 297, in _read_status
-    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
-               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socket.py", line 725, in readinto
-    return self._sock.recv_into(b)
-           ~~~~~~~~~~~~~~~~~~~~^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1304, in recv_into
-    return self.read(nbytes, buffer)
-           ~~~~~~~~~^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ssl.py", line 1138, in read
-    return self._sslobj.read(len, buffer)
-           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1219, in fetch_historical_data
-    historical_data = self.kite.historical_data(
-        instrument_token=instrument_token,
-    ...<2 lines>...
-        interval="5minute"
-    )
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 632, in historical_data
-    data = self._get("market.historical",
-                     url_args={"instrument_token": instrument_token, "interval": interval},
-    ...<5 lines>...
-                         "oi": 1 if oi else 0
-                     })
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 861, in _get
-    return self._request(route, "GET", url_args=url_args, params=params, is_json=is_json)
-           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 916, in _request
-    raise e
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/kiteconnect/connect.py", line 904, in _request
-    r = self.reqsession.request(method,
-                                url,
-    ...<6 lines>...
-                                timeout=self.timeout,
-                                proxies=self.proxies)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/sessions.py", line 589, in request
-    resp = self.send(prep, **send_kwargs)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/sessions.py", line 703, in send
-    r = adapter.send(request, **kwargs)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/requests/adapters.py", line 659, in send
-    raise ConnectionError(err, request=request)
-requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
-
-2026-01-20 11:12:56,210 - WARNING - ⚠ Data fetch failed. Connection might be lost.
-2026-01-20 11:12:56,210 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 11:17:56,217 - INFO - Attempting to connect to Kite API...
-2026-01-20 11:17:56,218 - INFO - Reading access token from file: access_token.txt
-2026-01-20 11:17:56,219 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 11:17:56,219 - INFO - Initializing KiteConnect instance
-2026-01-20 11:17:56,219 - INFO - Setting access token
-2026-01-20 11:17:56,219 - INFO - Fetching PE instrument...
-2026-01-20 11:17:56,219 - INFO - Fetching option instrument: BANKNIFTY26JAN59300PE...
-2026-01-20 11:17:56,841 - INFO - ✓ Selected Option: BANKNIFTY26JAN59300PE
-2026-01-20 11:17:56,841 - INFO -   Instrument Token: 13300482
-2026-01-20 11:17:56,841 - INFO -   Strike: 59300.0
-2026-01-20 11:17:56,841 - INFO -   Expiry: 2026-01-27
-2026-01-20 11:17:56,841 - INFO -   Lot Size: 30 units per lot
-2026-01-20 11:17:56,841 - INFO -   Trading: 2 lot(s) = 60 units
-2026-01-20 11:17:56,845 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-20 11:17:57,715 - INFO - ✓ WebSocket connected successfully
-2026-01-20 11:17:57,716 - INFO - 📡 Subscribed to BANKNIFTY26JAN59300PE (13300482)
-2026-01-20 11:17:57,716 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-20 11:17:58,850 - INFO - ✓ WebSocket setup complete
-2026-01-20 11:17:58,850 - INFO - ✓ Kite API connection established successfully
-2026-01-20 11:17:58,851 - INFO - ⏰ Current time: 11:17:58
-2026-01-20 11:17:58,851 - INFO - ⏰ Next candle completes at: 11:20:00
-2026-01-20 11:17:58,851 - INFO - ⏰ Will fetch at: 11:20:10 (+10s delay)
-2026-01-20 11:17:58,851 - INFO - ⏰ Waiting 131 seconds...
-2026-01-20 11:17:58,851 - INFO - ⏳ Reconnected! Waiting for next 5-minute interval before fetching...
-2026-01-20 11:20:10,006 - INFO - 🔄 Starting data fetch at 11:20:10
-2026-01-20 11:20:10,006 - INFO - --------------------------------------------------------------------------------
-2026-01-20 11:20:10,006 - INFO - Starting historical data fetch...
-2026-01-20 11:20:10,006 - INFO - Instrument Token (int): 13300482
-2026-01-20 11:20:10,006 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 11:20:10,006 - INFO - From: 2026-01-10 11:20:10
-2026-01-20 11:20:10,007 - INFO - To: 2026-01-20 11:20:10
-2026-01-20 11:20:10,007 - INFO - Interval: 5minute
-2026-01-20 11:20:10,007 - INFO - Calling Kite API for historical data...
-2026-01-20 11:20:10,107 - INFO - ✓ Received 401 candles from API
-2026-01-20 11:20:10,107 - INFO - ℹ️  Excluding current candle (still forming) - using 400 complete candles
-2026-01-20 11:20:10,107 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 11:20:10,110 - INFO - 📊 Latest RSI: 52.68
-2026-01-20 11:20:10,110 - INFO - 📊 Filtered latest 14 candles
-2026-01-20 11:20:10,110 - INFO - 📅 Data range: 2026-01-20 10:10 to 2026-01-20 11:15
-2026-01-20 11:20:10,110 - INFO - Processing candle data with RSI...
-2026-01-20 11:20:10,111 - INFO - 🔍 Checking order conditions...
-2026-01-20 11:20:10,111 - INFO - ℹ️  NO ALERT - No RSI crossover detected
-2026-01-20 11:20:10,111 - INFO -    Previous RSI: 57.38 | Current RSI: 52.68
-2026-01-20 11:20:10,111 - INFO -    RSI between 40-60 (neutral zone)
-2026-01-20 11:20:10,111 - INFO - Saving 14 candles to candles_data.json...
-2026-01-20 11:20:10,111 - INFO - ✓ Successfully saved 14 candles to candles_data.json
-2026-01-20 11:20:10,111 - INFO - File size: 2303 bytes
-2026-01-20 11:20:10,111 - INFO - --------------------------------------------------------------------------------
-2026-01-20 11:20:10,111 - INFO - 📊 LATEST CANDLE SUMMARY:
-2026-01-20 11:20:10,111 - INFO -   🕐 Date: 2026-01-20T11:15:00+05:30
-2026-01-20 11:20:10,111 - INFO -   💹 Open: 188
-2026-01-20 11:20:10,111 - INFO -   ⬆️  High: 192.15
-2026-01-20 11:20:10,111 - INFO -   ⬇️  Low: 180.55
-2026-01-20 11:20:10,112 - INFO -   💵 Close: 191.8
-2026-01-20 11:20:10,112 - INFO -   📦 Volume: 7890
-2026-01-20 11:20:10,112 - INFO -   📈 RSI: 52.68042585974011
-2026-01-20 11:20:10,112 - INFO - --------------------------------------------------------------------------------
-2026-01-20 11:20:10,112 - INFO - ✓ Data fetch complete at 11:20:10
-2026-01-20 11:20:10,112 - INFO - ================================================================================
-2026-01-20 11:20:10,112 - INFO - ⏰ Current time: 11:20:10
-2026-01-20 11:20:10,112 - INFO - ⏰ Next candle completes at: 11:25:00
-2026-01-20 11:20:10,112 - INFO - ⏰ Will fetch at: 11:25:10 (+10s delay)
-2026-01-20 11:20:10,112 - INFO - ⏰ Waiting 299 seconds...
-2026-01-20 23:35:21,441 - INFO - ================================================================================
-2026-01-20 23:35:21,441 - INFO - Initializing Kite Data Fetcher Server
-2026-01-20 23:35:21,441 - INFO - ================================================================================
-2026-01-20 23:35:21,441 - INFO - Loading environment variables from .env file
-2026-01-20 23:35:21,442 - INFO - API_KEY loaded: lo8381a8...
-2026-01-20 23:35:21,442 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:35:21,442 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:35:21,442 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:35:21,442 - INFO -   🏢 Exchange: NFO
-2026-01-20 23:35:21,442 - INFO -   📊 Type: FUT
-2026-01-20 23:35:21,442 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:35:21,442 - INFO -   🎯 Target: 10.0
-2026-01-20 23:35:21,442 - INFO -   📦 Lots: 2
-2026-01-20 23:35:21,442 - INFO -   📦 Lot Size: 100
-2026-01-20 23:35:21,442 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:35:21,442 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:35:21,442 - INFO - 📊 Trading Mode: PAPER
-2026-01-20 23:35:21,442 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-20 23:35:21,442 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-20 23:35:21,442 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-20 23:35:21,442 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-20 23:35:21,442 - INFO - 📁 Trades Log File: trades.json
-2026-01-20 23:35:21,442 - INFO - 📧 Email Notifications: Enabled
-2026-01-20 23:35:21,442 - INFO - ================================================================================
-2026-01-20 23:35:21,442 - INFO - ================================================================================
-2026-01-20 23:35:21,442 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-20 23:35:21,442 - INFO - ================================================================================
-2026-01-20 23:35:21,442 - INFO - Attempting to connect to Kite API...
-2026-01-20 23:35:21,442 - INFO - Reading access token from file: access_token.txt
-2026-01-20 23:35:21,442 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 23:35:21,442 - INFO - Initializing KiteConnect instance
-2026-01-20 23:35:21,442 - INFO - Setting access token
-2026-01-20 23:35:21,442 - INFO - Fetching FUT instrument...
-2026-01-20 23:35:21,442 - INFO - Fetching CRUDEOIL futures instruments...
-2026-01-20 23:35:22,116 - ERROR - ✗ No CRUDEOIL futures found
-2026-01-20 23:35:22,120 - ERROR - ✗ Failed to fetch CRUDEOIL futures instrument
-2026-01-20 23:35:22,121 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 23:36:02,030 - INFO - 
+2026-02-01 10:37:05,860 - INFO - ================================================================================
+2026-02-01 10:37:05,860 - INFO - Initializing Kite Data Fetcher Server
+2026-02-01 10:37:05,860 - INFO - ================================================================================
+2026-02-01 10:37:05,860 - INFO - Loading environment variables from .env file
+2026-02-01 10:37:05,860 - INFO - API_KEY loaded: lo8381a8...
+2026-02-01 10:37:05,860 - INFO - 📋 Loading configuration from config.json...
+2026-02-01 10:37:05,860 - INFO - ✓ Configuration loaded successfully
+2026-02-01 10:37:05,860 - INFO -   📈 Instrument: CRUDEOIL
+2026-02-01 10:37:05,860 - INFO -   🏢 Exchange: MCX
+2026-02-01 10:37:05,860 - INFO -   📊 Type: FUT
+2026-02-01 10:37:05,860 - INFO -   📏 High-Low Diff: 15.0
+2026-02-01 10:37:05,861 - INFO -   🎯 Target: 10.0
+2026-02-01 10:37:05,861 - INFO -   📦 Lots: 2
+2026-02-01 10:37:05,861 - INFO -   📦 Lot Size: 100
+2026-02-01 10:37:05,861 - INFO -   📦 Total Quantity: 200
+2026-02-01 10:37:05,861 - INFO -   💼 Trading Mode: PAPER
+2026-02-01 10:37:05,861 - INFO - 📊 Trading Mode: PAPER
+2026-02-01 10:37:05,861 - INFO - 📦 Trade Quantity: 2 lot(s)
+2026-02-01 10:37:05,861 - INFO - 🔄 Retry Interval: 300 seconds
+2026-02-01 10:37:05,861 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
+2026-02-01 10:37:05,861 - INFO - 📁 Candles Data File: candles_data.json
+2026-02-01 10:37:05,861 - INFO - 📁 Trades Log File: trades.json
+2026-02-01 10:37:05,861 - INFO - 📧 Email Notifications: Enabled
+2026-02-01 10:37:05,861 - INFO - ================================================================================
+2026-02-01 10:37:05,861 - INFO - ================================================================================
+2026-02-01 10:37:05,861 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
+2026-02-01 10:37:05,861 - INFO - ================================================================================
+2026-02-01 10:37:05,861 - INFO - Attempting to connect to Kite API...
+2026-02-01 10:37:05,861 - INFO - Reading access token from file: access_token.txt
+2026-02-01 10:37:05,861 - INFO - Access token loaded: JS38iavKJx...
+2026-02-01 10:37:05,861 - INFO - Initializing KiteConnect instance
+2026-02-01 10:37:05,861 - INFO - Setting access token
+2026-02-01 10:37:05,861 - INFO - Fetching FUT instrument...
+2026-02-01 10:37:05,861 - INFO - Fetching CRUDEOIL futures instruments...
+2026-02-01 10:37:06,655 - INFO - ✓ Selected CRUDEOIL Futures: CRUDEOIL26FEBFUT
+2026-02-01 10:37:06,655 - INFO -   Instrument Token: 119555335
+2026-02-01 10:37:06,655 - INFO -   Expiry: 2026-02-19
+2026-02-01 10:37:06,655 - INFO -   Lot Size: 100 units per lot (from .env)
+2026-02-01 10:37:06,655 - INFO -   Trading: 2 lot(s) = 200 units
+2026-02-01 10:37:06,662 - INFO - 🔌 Setting up WebSocket connection...
+2026-02-01 10:37:06,778 - INFO - ✓ WebSocket connected successfully
+2026-02-01 10:37:06,778 - INFO - 📡 Subscribed to CRUDEOIL26FEBFUT (119555335)
+2026-02-01 10:37:06,778 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
+2026-02-01 10:37:08,668 - INFO - ✓ WebSocket setup complete
+2026-02-01 10:37:08,668 - INFO - ✓ Kite API connection established successfully
+2026-02-01 10:37:08,668 - INFO - ⏰ Current time: 10:37:08
+2026-02-01 10:37:08,668 - INFO - ⏰ Next candle completes at: 10:40:00
+2026-02-01 10:37:08,668 - INFO - ⏰ Will fetch at: 10:40:10 (+10s delay)
+2026-02-01 10:37:08,668 - INFO - ⏰ Waiting 181 seconds...
+2026-02-01 10:37:08,668 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
+2026-02-01 10:40:01,174 - INFO - 
 ================================================================================
-2026-01-20 23:36:02,031 - INFO - Server stopped by user (Ctrl+C)
-2026-01-20 23:36:02,031 - INFO - ================================================================================
-2026-01-20 23:36:03,542 - INFO - ================================================================================
-2026-01-20 23:36:03,542 - INFO - Initializing Kite Data Fetcher Server
-2026-01-20 23:36:03,542 - INFO - ================================================================================
-2026-01-20 23:36:03,542 - INFO - Loading environment variables from .env file
-2026-01-20 23:36:03,543 - INFO - API_KEY loaded: lo8381a8...
-2026-01-20 23:36:03,543 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:36:03,543 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:36:03,543 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:36:03,543 - INFO -   🏢 Exchange: NFO
-2026-01-20 23:36:03,543 - INFO -   📊 Type: FUT
-2026-01-20 23:36:03,543 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:36:03,543 - INFO -   🎯 Target: 10.0
-2026-01-20 23:36:03,543 - INFO -   📦 Lots: 2
-2026-01-20 23:36:03,543 - INFO -   📦 Lot Size: 100
-2026-01-20 23:36:03,543 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:36:03,543 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:36:03,543 - INFO - 📊 Trading Mode: PAPER
-2026-01-20 23:36:03,543 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-20 23:36:03,543 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-20 23:36:03,543 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-20 23:36:03,543 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-20 23:36:03,543 - INFO - 📁 Trades Log File: trades.json
-2026-01-20 23:36:03,543 - INFO - 📧 Email Notifications: Enabled
-2026-01-20 23:36:03,543 - INFO - ================================================================================
-2026-01-20 23:36:03,543 - INFO - ================================================================================
-2026-01-20 23:36:03,543 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-20 23:36:03,543 - INFO - ================================================================================
-2026-01-20 23:36:03,543 - INFO - Attempting to connect to Kite API...
-2026-01-20 23:36:03,543 - INFO - Reading access token from file: access_token.txt
-2026-01-20 23:36:03,543 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 23:36:03,543 - INFO - Initializing KiteConnect instance
-2026-01-20 23:36:03,543 - INFO - Setting access token
-2026-01-20 23:36:03,543 - INFO - Fetching FUT instrument...
-2026-01-20 23:36:03,543 - INFO - Fetching CRUDEOIL futures instruments...
-2026-01-20 23:36:04,197 - ERROR - ✗ No CRUDEOIL futures found
-2026-01-20 23:36:04,201 - ERROR - ✗ Failed to fetch CRUDEOIL futures instrument
-2026-01-20 23:36:04,201 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 23:37:29,155 - INFO - 
+2026-02-01 10:40:01,175 - INFO - Server stopped by user (Ctrl+C)
+2026-02-01 10:40:01,176 - INFO - ================================================================================
+2026-02-01 10:40:03,250 - INFO - ================================================================================
+2026-02-01 10:40:03,251 - INFO - Initializing Kite Data Fetcher Server
+2026-02-01 10:40:03,251 - INFO - ================================================================================
+2026-02-01 10:40:03,251 - INFO - Loading environment variables from .env file
+2026-02-01 10:40:03,251 - INFO - API_KEY loaded: lo8381a8...
+2026-02-01 10:40:03,251 - INFO - 📋 Loading configuration from config.json...
+2026-02-01 10:40:03,251 - INFO - ✓ Configuration loaded successfully
+2026-02-01 10:40:03,251 - INFO -   📈 Instrument: BANKNIFTY26FEB59800PE
+2026-02-01 10:40:03,251 - INFO -   🏢 Exchange: NFO
+2026-02-01 10:40:03,251 - INFO -   📊 Type: PE
+2026-02-01 10:40:03,251 - INFO -   📏 High-Low Diff: 40.0
+2026-02-01 10:40:03,251 - INFO -   🎯 Target: 30.0
+2026-02-01 10:40:03,251 - INFO -   📦 Lots: 5
+2026-02-01 10:40:03,251 - INFO -   📦 Lot Size: 30
+2026-02-01 10:40:03,251 - INFO -   📦 Total Quantity: 150
+2026-02-01 10:40:03,251 - INFO -   💼 Trading Mode: PAPER
+2026-02-01 10:40:03,251 - INFO - 📊 Trading Mode: PAPER
+2026-02-01 10:40:03,251 - INFO - 📦 Trade Quantity: 5 lot(s)
+2026-02-01 10:40:03,251 - INFO - 🔄 Retry Interval: 300 seconds
+2026-02-01 10:40:03,251 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
+2026-02-01 10:40:03,251 - INFO - 📁 Candles Data File: candles_data.json
+2026-02-01 10:40:03,251 - INFO - 📁 Trades Log File: trades.json
+2026-02-01 10:40:03,251 - INFO - 📧 Email Notifications: Enabled
+2026-02-01 10:40:03,251 - INFO - ================================================================================
+2026-02-01 10:40:03,251 - INFO - ================================================================================
+2026-02-01 10:40:03,251 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
+2026-02-01 10:40:03,251 - INFO - ================================================================================
+2026-02-01 10:40:03,251 - INFO - Attempting to connect to Kite API...
+2026-02-01 10:40:03,251 - INFO - Reading access token from file: access_token.txt
+2026-02-01 10:40:03,251 - INFO - Access token loaded: JS38iavKJx...
+2026-02-01 10:40:03,251 - INFO - Initializing KiteConnect instance
+2026-02-01 10:40:03,252 - INFO - Setting access token
+2026-02-01 10:40:03,252 - INFO - Fetching PE instrument...
+2026-02-01 10:40:03,252 - INFO - Fetching option instrument: BANKNIFTY26FEB59800PE...
+2026-02-01 10:40:03,851 - INFO - ✓ Selected Option: BANKNIFTY26FEB59800PE
+2026-02-01 10:40:03,851 - INFO -   Instrument Token: 15421442
+2026-02-01 10:40:03,851 - INFO -   Strike: 59800.0
+2026-02-01 10:40:03,851 - INFO -   Expiry: 2026-02-24
+2026-02-01 10:40:03,851 - INFO -   Lot Size: 30 units per lot
+2026-02-01 10:40:03,851 - INFO -   Trading: 5 lot(s) = 150 units
+2026-02-01 10:40:03,855 - INFO - 🔌 Setting up WebSocket connection...
+2026-02-01 10:40:03,955 - INFO - ✓ WebSocket connected successfully
+2026-02-01 10:40:03,955 - INFO - 📡 Subscribed to BANKNIFTY26FEB59800PE (15421442)
+2026-02-01 10:40:03,955 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
+2026-02-01 10:40:05,860 - INFO - ✓ WebSocket setup complete
+2026-02-01 10:40:05,860 - INFO - ✓ Kite API connection established successfully
+2026-02-01 10:40:05,861 - INFO - ⏰ Current time: 10:40:05
+2026-02-01 10:40:05,861 - INFO - ⏰ Next candle completes at: 10:45:00
+2026-02-01 10:40:05,861 - INFO - ⏰ Will fetch at: 10:45:10 (+10s delay)
+2026-02-01 10:40:05,861 - INFO - ⏰ Waiting 304 seconds...
+2026-02-01 10:40:05,861 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
+2026-02-01 10:45:10,005 - INFO - 🔄 Starting data fetch at 10:45:10
+2026-02-01 10:45:10,006 - INFO - --------------------------------------------------------------------------------
+2026-02-01 10:45:10,006 - INFO - Starting historical data fetch...
+2026-02-01 10:45:10,007 - INFO - Instrument Token (int): 15421442
+2026-02-01 10:45:10,007 - INFO - Fetching data from last 10 days (up to now)...
+2026-02-01 10:45:10,007 - INFO - From: 2026-01-22 10:45:10
+2026-02-01 10:45:10,007 - INFO - To: 2026-02-01 10:45:10
+2026-02-01 10:45:10,007 - INFO - Interval: 5minute
+2026-02-01 10:45:10,007 - INFO - Calling Kite API for historical data...
+2026-02-01 10:45:10,165 - INFO - ✓ Received 451 candles from API
+2026-02-01 10:45:10,165 - INFO - ℹ️  Excluding current candle (still forming) - using 450 complete candles
+2026-02-01 10:45:10,165 - INFO - Calculating RSI (14-period) on complete candles...
+2026-02-01 10:45:10,174 - INFO - 📊 Latest RSI: 41.56
+2026-02-01 10:45:10,174 - INFO - 📊 Filtered latest 14 candles
+2026-02-01 10:45:10,174 - INFO - 📅 Data range: 2026-02-01 09:35 to 2026-02-01 10:40
+2026-02-01 10:45:10,174 - INFO - Processing candle data with RSI...
+2026-02-01 10:45:10,174 - INFO - 🔍 Checking order conditions...
+2026-02-01 10:45:10,174 - INFO - ℹ️  TRADE SKIPPED - RSI not available or first calculation
+2026-02-01 10:45:10,174 - INFO - Saving 14 candles to candles_data.json...
+2026-02-01 10:45:10,175 - INFO - ✓ Successfully saved 14 candles to candles_data.json
+2026-02-01 10:45:10,175 - INFO - File size: 2282 bytes
+2026-02-01 10:45:10,175 - INFO - --------------------------------------------------------------------------------
+2026-02-01 10:45:10,175 - INFO - 📊 LATEST CANDLE SUMMARY:
+2026-02-01 10:45:10,175 - INFO -   🕐 Date: 2026-02-01T10:40:00+05:30
+2026-02-01 10:45:10,175 - INFO -   💹 Open: 760.8
+2026-02-01 10:45:10,175 - INFO -   ⬆️  High: 788.9
+2026-02-01 10:45:10,175 - INFO -   ⬇️  Low: 756.6
+2026-02-01 10:45:10,175 - INFO -   💵 Close: 780.6
+2026-02-01 10:45:10,175 - INFO -   📦 Volume: 18090
+2026-02-01 10:45:10,176 - INFO -   📈 RSI: 41.55918170386053
+2026-02-01 10:45:10,176 - INFO - --------------------------------------------------------------------------------
+2026-02-01 10:45:10,176 - INFO - ✓ Data fetch complete at 10:45:10
+2026-02-01 10:45:10,176 - INFO - ================================================================================
+2026-02-01 10:45:10,176 - INFO - ⏰ Current time: 10:45:10
+2026-02-01 10:45:10,176 - INFO - ⏰ Next candle completes at: 10:50:00
+2026-02-01 10:45:10,176 - INFO - ⏰ Will fetch at: 10:50:10 (+10s delay)
+2026-02-01 10:45:10,176 - INFO - ⏰ Waiting 299 seconds...
+2026-02-01 10:50:10,007 - INFO - 🔄 Starting data fetch at 10:50:10
+2026-02-01 10:50:10,007 - INFO - --------------------------------------------------------------------------------
+2026-02-01 10:50:10,008 - INFO - Starting historical data fetch...
+2026-02-01 10:50:10,008 - INFO - Instrument Token (int): 15421442
+2026-02-01 10:50:10,008 - INFO - Fetching data from last 10 days (up to now)...
+2026-02-01 10:50:10,008 - INFO - From: 2026-01-22 10:50:10
+2026-02-01 10:50:10,008 - INFO - To: 2026-02-01 10:50:10
+2026-02-01 10:50:10,008 - INFO - Interval: 5minute
+2026-02-01 10:50:10,008 - INFO - Calling Kite API for historical data...
+2026-02-01 10:50:10,172 - INFO - ✓ Received 451 candles from API
+2026-02-01 10:50:10,173 - INFO - ℹ️  Excluding current candle (still forming) - using 450 complete candles
+2026-02-01 10:50:10,173 - INFO - Calculating RSI (14-period) on complete candles...
+2026-02-01 10:50:10,176 - INFO - 📊 Latest RSI: 41.93
+2026-02-01 10:50:10,176 - INFO - 📊 Filtered latest 14 candles
+2026-02-01 10:50:10,176 - INFO - 📅 Data range: 2026-02-01 09:40 to 2026-02-01 10:45
+2026-02-01 10:50:10,176 - INFO - Processing candle data with RSI...
+2026-02-01 10:50:10,176 - INFO - 🔍 Checking order conditions...
+2026-02-01 10:50:10,177 - INFO - ℹ️  NO ALERT - No RSI crossover detected
+2026-02-01 10:50:10,177 - INFO -    Previous RSI: 41.56 | Current RSI: 41.93
+2026-02-01 10:50:10,177 - INFO -    RSI between 40-60 (neutral zone)
+2026-02-01 10:50:10,177 - INFO - Saving 14 candles to candles_data.json...
+2026-02-01 10:50:10,177 - INFO - ✓ Successfully saved 14 candles to candles_data.json
+2026-02-01 10:50:10,177 - INFO - File size: 2288 bytes
+2026-02-01 10:50:10,177 - INFO - --------------------------------------------------------------------------------
+2026-02-01 10:50:10,177 - INFO - 📊 LATEST CANDLE SUMMARY:
+2026-02-01 10:50:10,177 - INFO -   🕐 Date: 2026-02-01T10:45:00+05:30
+2026-02-01 10:50:10,177 - INFO -   💹 Open: 780.6
+2026-02-01 10:50:10,177 - INFO -   ⬆️  High: 785.6
+2026-02-01 10:50:10,177 - INFO -   ⬇️  Low: 770.85
+2026-02-01 10:50:10,178 - INFO -   💵 Close: 781.7
+2026-02-01 10:50:10,178 - INFO -   📦 Volume: 9330
+2026-02-01 10:50:10,178 - INFO -   📈 RSI: 41.92548728480296
+2026-02-01 10:50:10,178 - INFO - --------------------------------------------------------------------------------
+2026-02-01 10:50:10,178 - INFO - ✓ Data fetch complete at 10:50:10
+2026-02-01 10:50:10,178 - INFO - ================================================================================
+2026-02-01 10:50:10,178 - INFO - ⏰ Current time: 10:50:10
+2026-02-01 10:50:10,178 - INFO - ⏰ Next candle completes at: 10:55:00
+2026-02-01 10:50:10,178 - INFO - ⏰ Will fetch at: 10:55:10 (+10s delay)
+2026-02-01 10:50:10,178 - INFO - ⏰ Waiting 299 seconds...
+2026-02-01 10:50:43,742 - INFO - 
 ================================================================================
-2026-01-20 23:37:29,155 - INFO - Server stopped by user (Ctrl+C)
-2026-01-20 23:37:29,155 - INFO - ================================================================================
-2026-01-20 23:37:30,828 - INFO - ================================================================================
-2026-01-20 23:37:30,828 - INFO - Initializing Kite Data Fetcher Server
-2026-01-20 23:37:30,828 - INFO - ================================================================================
-2026-01-20 23:37:30,828 - INFO - Loading environment variables from .env file
-2026-01-20 23:37:30,828 - INFO - API_KEY loaded: lo8381a8...
-2026-01-20 23:37:30,829 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:37:30,829 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:37:30,829 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:37:30,829 - INFO -   🏢 Exchange: MCX
-2026-01-20 23:37:30,829 - INFO -   📊 Type: FUT
-2026-01-20 23:37:30,829 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:37:30,829 - INFO -   🎯 Target: 10.0
-2026-01-20 23:37:30,829 - INFO -   📦 Lots: 2
-2026-01-20 23:37:30,829 - INFO -   📦 Lot Size: 100
-2026-01-20 23:37:30,829 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:37:30,829 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:37:30,829 - INFO - 📊 Trading Mode: PAPER
-2026-01-20 23:37:30,829 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-20 23:37:30,829 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-20 23:37:30,829 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-20 23:37:30,829 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-20 23:37:30,829 - INFO - 📁 Trades Log File: trades.json
-2026-01-20 23:37:30,829 - INFO - 📧 Email Notifications: Enabled
-2026-01-20 23:37:30,829 - INFO - ================================================================================
-2026-01-20 23:37:30,829 - INFO - ================================================================================
-2026-01-20 23:37:30,829 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-20 23:37:30,829 - INFO - ================================================================================
-2026-01-20 23:37:30,829 - INFO - Attempting to connect to Kite API...
-2026-01-20 23:37:30,829 - INFO - Reading access token from file: access_token.txt
-2026-01-20 23:37:30,829 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 23:37:30,829 - INFO - Initializing KiteConnect instance
-2026-01-20 23:37:30,829 - INFO - Setting access token
-2026-01-20 23:37:30,829 - INFO - Fetching FUT instrument...
-2026-01-20 23:37:30,829 - INFO - Fetching CRUDEOIL futures instruments...
-2026-01-20 23:37:31,500 - ERROR - ✗ No CRUDEOIL futures found
-2026-01-20 23:37:31,504 - ERROR - ✗ Failed to fetch CRUDEOIL futures instrument
-2026-01-20 23:37:31,505 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 23:38:11,984 - INFO - 
-================================================================================
-2026-01-20 23:38:11,984 - INFO - Server stopped by user (Ctrl+C)
-2026-01-20 23:38:11,985 - INFO - ================================================================================
-2026-01-20 23:38:16,077 - INFO - ================================================================================
-2026-01-20 23:38:16,077 - INFO - Initializing Kite Data Fetcher Server
-2026-01-20 23:38:16,077 - INFO - ================================================================================
-2026-01-20 23:38:16,077 - INFO - Loading environment variables from .env file
-2026-01-20 23:38:16,077 - INFO - API_KEY loaded: lo8381a8...
-2026-01-20 23:38:16,077 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:38:16,077 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:38:16,077 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:38:16,077 - INFO -   🏢 Exchange: MCX
-2026-01-20 23:38:16,077 - INFO -   📊 Type: FUT
-2026-01-20 23:38:16,077 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:38:16,077 - INFO -   🎯 Target: 10.0
-2026-01-20 23:38:16,077 - INFO -   📦 Lots: 2
-2026-01-20 23:38:16,077 - INFO -   📦 Lot Size: 100
-2026-01-20 23:38:16,077 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:38:16,077 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:38:16,077 - INFO - 📊 Trading Mode: PAPER
-2026-01-20 23:38:16,077 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-20 23:38:16,077 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-20 23:38:16,077 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-20 23:38:16,077 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-20 23:38:16,077 - INFO - 📁 Trades Log File: trades.json
-2026-01-20 23:38:16,077 - INFO - 📧 Email Notifications: Enabled
-2026-01-20 23:38:16,077 - INFO - ================================================================================
-2026-01-20 23:38:16,077 - INFO - ================================================================================
-2026-01-20 23:38:16,077 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-20 23:38:16,077 - INFO - ================================================================================
-2026-01-20 23:38:16,077 - INFO - Attempting to connect to Kite API...
-2026-01-20 23:38:16,077 - INFO - Reading access token from file: access_token.txt
-2026-01-20 23:38:16,077 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 23:38:16,077 - INFO - Initializing KiteConnect instance
-2026-01-20 23:38:16,077 - INFO - Setting access token
-2026-01-20 23:38:16,077 - INFO - Fetching FUT instrument...
-2026-01-20 23:38:16,077 - INFO - Fetching CRUDEOIL futures instruments...
-2026-01-20 23:38:16,740 - ERROR - ✗ No CRUDEOIL futures found
-2026-01-20 23:38:16,744 - ERROR - ✗ Failed to fetch CRUDEOIL futures instrument
-2026-01-20 23:38:16,744 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 23:42:04,454 - INFO - 
-================================================================================
-2026-01-20 23:42:04,455 - INFO - Server stopped by user (Ctrl+C)
-2026-01-20 23:42:04,455 - INFO - ================================================================================
-2026-01-20 23:44:41,116 - INFO - ================================================================================
-2026-01-20 23:44:41,117 - INFO - Initializing Kite Data Fetcher Server
-2026-01-20 23:44:41,117 - INFO - ================================================================================
-2026-01-20 23:44:41,117 - INFO - Loading environment variables from .env file
-2026-01-20 23:44:41,117 - INFO - API_KEY loaded: lo8381a8...
-2026-01-20 23:44:41,117 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:44:41,117 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:44:41,117 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:44:41,117 - INFO -   🏢 Exchange: MCX
-2026-01-20 23:44:41,117 - INFO -   📊 Type: FUT
-2026-01-20 23:44:41,117 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:44:41,117 - INFO -   🎯 Target: 10.0
-2026-01-20 23:44:41,117 - INFO -   📦 Lots: 2
-2026-01-20 23:44:41,117 - INFO -   📦 Lot Size: 100
-2026-01-20 23:44:41,117 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:44:41,117 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:44:41,117 - INFO - 📊 Trading Mode: PAPER
-2026-01-20 23:44:41,117 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-20 23:44:41,117 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-20 23:44:41,117 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-20 23:44:41,117 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-20 23:44:41,117 - INFO - 📁 Trades Log File: trades.json
-2026-01-20 23:44:41,117 - INFO - 📧 Email Notifications: Enabled
-2026-01-20 23:44:41,117 - INFO - ================================================================================
-2026-01-20 23:44:41,117 - INFO - ================================================================================
-2026-01-20 23:44:41,117 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-20 23:44:41,117 - INFO - ================================================================================
-2026-01-20 23:44:41,117 - INFO - Attempting to connect to Kite API...
-2026-01-20 23:44:41,117 - INFO - Reading access token from file: access_token.txt
-2026-01-20 23:44:41,118 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 23:44:41,118 - INFO - Initializing KiteConnect instance
-2026-01-20 23:44:41,118 - INFO - Setting access token
-2026-01-20 23:44:41,118 - INFO - Fetching FUT instrument...
-2026-01-20 23:44:41,118 - INFO - Fetching CRUDEOIL futures instruments...
-2026-01-20 23:44:41,893 - INFO - ✓ Selected CRUDEOIL Futures: CRUDEOIL26FEBFUT
-2026-01-20 23:44:41,893 - INFO -   Instrument Token: 119555335
-2026-01-20 23:44:41,893 - INFO -   Expiry: 2026-02-19
-2026-01-20 23:44:41,893 - INFO -   Lot Size: 100 units per lot (from .env)
-2026-01-20 23:44:41,893 - INFO -   Trading: 2 lot(s) = 200 units
-2026-01-20 23:44:41,898 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-20 23:44:42,006 - INFO - ✓ WebSocket connected successfully
-2026-01-20 23:44:42,006 - INFO - 📡 Subscribed to CRUDEOIL26FEBFUT (119555335)
-2026-01-20 23:44:42,006 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-20 23:44:43,904 - INFO - ✓ WebSocket setup complete
-2026-01-20 23:44:43,904 - INFO - ✓ Kite API connection established successfully
-2026-01-20 23:44:43,904 - INFO - ⏰ Current time: 23:44:43
-2026-01-20 23:44:43,904 - INFO - ⏰ Next candle completes at: 23:45:00
-2026-01-20 23:44:43,904 - INFO - ⏰ Will fetch at: 23:45:10 (+10s delay)
-2026-01-20 23:44:43,905 - INFO - ⏰ Waiting 26 seconds...
-2026-01-20 23:44:43,905 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-20 23:45:10,003 - INFO - ================================================================================
-2026-01-20 23:45:10,004 - INFO - 🔄 CONFIG CHANGE DETECTED!
-2026-01-20 23:45:10,004 - INFO -    File: config.json
-2026-01-20 23:45:10,004 - INFO -    Flag 'is_changed' = true
-2026-01-20 23:45:10,005 - INFO -    Changes will be applied in next 5-minute interval
-2026-01-20 23:45:10,005 - INFO - ================================================================================
-2026-01-20 23:45:10,005 - INFO - ⚙️  Applying configuration changes before next data fetch...
-2026-01-20 23:45:10,005 - INFO - ================================================================================
-2026-01-20 23:45:10,005 - INFO - 🔄 APPLYING CONFIGURATION CHANGES
-2026-01-20 23:45:10,005 - INFO - ================================================================================
-2026-01-20 23:45:10,005 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:45:10,005 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:45:10,005 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:45:10,005 - INFO -   🏢 Exchange: MCX
-2026-01-20 23:45:10,005 - INFO -   📊 Type: FUT
-2026-01-20 23:45:10,007 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:45:10,007 - INFO -   🎯 Target: 10.0
-2026-01-20 23:45:10,007 - INFO -   📦 Lots: 2
-2026-01-20 23:45:10,007 - INFO -   📦 Lot Size: 100
-2026-01-20 23:45:10,007 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:45:10,007 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:45:10,007 - INFO - 📊 Instrument unchanged - keeping existing connection
-2026-01-20 23:45:10,008 - INFO - ✅ Configuration changes applied successfully
-2026-01-20 23:45:10,008 - INFO - ================================================================================
-2026-01-20 23:45:10,008 - INFO - 🔄 Starting data fetch at 23:45:10
-2026-01-20 23:45:10,008 - INFO - --------------------------------------------------------------------------------
-2026-01-20 23:45:10,008 - INFO - Starting historical data fetch...
-2026-01-20 23:45:10,008 - INFO - Instrument Token (int): 119555335
-2026-01-20 23:45:10,008 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 23:45:10,008 - INFO - From: 2026-01-10 23:45:10
-2026-01-20 23:45:10,008 - INFO - To: 2026-01-20 23:45:10
-2026-01-20 23:45:10,008 - INFO - Interval: 5minute
-2026-01-20 23:45:10,008 - INFO - Calling Kite API for historical data...
-2026-01-20 23:45:10,119 - INFO - ✓ Received 1156 candles from API
-2026-01-20 23:45:10,119 - INFO - ℹ️  Excluding current candle (still forming) - using 1155 complete candles
-2026-01-20 23:45:10,119 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 23:45:10,126 - ERROR - ✗ Error fetching historical data: input array type is not double
-2026-01-20 23:45:10,126 - ERROR - Error type: Exception
-2026-01-20 23:45:10,127 - ERROR - Traceback: Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1281, in fetch_historical_data
-    rsi_values, latest_rsi = self.calculate_rsi(complete_candles)
-                             ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 809, in calculate_rsi
-    rsi_values = talib.RSI(closes, timeperiod=14)
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/talib/__init__.py", line 80, in wrapper
-    result = func(*_args, **_kwds)
-  File "talib/_func.pxi", line 4477, in talib._ta_lib.RSI
-  File "talib/_func.pxi", line 22, in talib._ta_lib.check_array
-Exception: input array type is not double
-
-2026-01-20 23:45:10,127 - WARNING - ⚠ Data fetch failed. Connection might be lost.
-2026-01-20 23:45:10,127 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 23:50:10,134 - INFO - Attempting to connect to Kite API...
-2026-01-20 23:50:10,136 - INFO - Reading access token from file: access_token.txt
-2026-01-20 23:50:10,138 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 23:50:10,138 - INFO - Initializing KiteConnect instance
-2026-01-20 23:50:10,143 - INFO - Setting access token
-2026-01-20 23:50:10,143 - INFO - Fetching FUT instrument...
-2026-01-20 23:50:10,143 - INFO - Fetching CRUDEOIL futures instruments...
-2026-01-20 23:50:10,925 - INFO - ✓ Selected CRUDEOIL Futures: CRUDEOIL26FEBFUT
-2026-01-20 23:50:10,925 - INFO -   Instrument Token: 119555335
-2026-01-20 23:50:10,925 - INFO -   Expiry: 2026-02-19
-2026-01-20 23:50:10,925 - INFO -   Lot Size: 100 units per lot (from .env)
-2026-01-20 23:50:10,925 - INFO -   Trading: 2 lot(s) = 200 units
-2026-01-20 23:50:10,930 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-20 23:50:11,880 - INFO - ✓ WebSocket connected successfully
-2026-01-20 23:50:11,880 - INFO - 📡 Subscribed to CRUDEOIL26FEBFUT (119555335)
-2026-01-20 23:50:11,880 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-20 23:50:12,936 - INFO - ✓ WebSocket setup complete
-2026-01-20 23:50:12,936 - INFO - ✓ Kite API connection established successfully
-2026-01-20 23:50:12,936 - INFO - ⏰ Current time: 23:50:12
-2026-01-20 23:50:12,936 - INFO - ⏰ Next candle completes at: 23:55:00
-2026-01-20 23:50:12,936 - INFO - ⏰ Will fetch at: 23:55:10 (+10s delay)
-2026-01-20 23:50:12,936 - INFO - ⏰ Waiting 297 seconds...
-2026-01-20 23:50:12,936 - INFO - ⏳ Reconnected! Waiting for next 5-minute interval before fetching...
-2026-01-20 23:55:10,005 - INFO - ================================================================================
-2026-01-20 23:55:10,007 - INFO - 🔄 CONFIG CHANGE DETECTED!
-2026-01-20 23:55:10,007 - INFO -    File: config.json
-2026-01-20 23:55:10,007 - INFO -    Flag 'is_changed' = true
-2026-01-20 23:55:10,007 - INFO -    Changes will be applied in next 5-minute interval
-2026-01-20 23:55:10,007 - INFO - ================================================================================
-2026-01-20 23:55:10,007 - INFO - ⚙️  Applying configuration changes before next data fetch...
-2026-01-20 23:55:10,007 - INFO - ================================================================================
-2026-01-20 23:55:10,007 - INFO - 🔄 APPLYING CONFIGURATION CHANGES
-2026-01-20 23:55:10,007 - INFO - ================================================================================
-2026-01-20 23:55:10,007 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:55:10,008 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:55:10,008 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:55:10,008 - INFO -   🏢 Exchange: MCX
-2026-01-20 23:55:10,008 - INFO -   📊 Type: FUT
-2026-01-20 23:55:10,008 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:55:10,008 - INFO -   🎯 Target: 10.0
-2026-01-20 23:55:10,008 - INFO -   📦 Lots: 2
-2026-01-20 23:55:10,008 - INFO -   📦 Lot Size: 100
-2026-01-20 23:55:10,008 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:55:10,008 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:55:10,008 - INFO - 📊 Instrument unchanged - keeping existing connection
-2026-01-20 23:55:10,008 - INFO - ✅ Configuration changes applied successfully
-2026-01-20 23:55:10,008 - INFO - ================================================================================
-2026-01-20 23:55:10,008 - INFO - 🔄 Starting data fetch at 23:55:10
-2026-01-20 23:55:10,008 - INFO - --------------------------------------------------------------------------------
-2026-01-20 23:55:10,008 - INFO - Starting historical data fetch...
-2026-01-20 23:55:10,008 - INFO - Instrument Token (int): 119555335
-2026-01-20 23:55:10,008 - INFO - Fetching data from last 10 days (up to now)...
-2026-01-20 23:55:10,008 - INFO - From: 2026-01-10 23:55:10
-2026-01-20 23:55:10,008 - INFO - To: 2026-01-20 23:55:10
-2026-01-20 23:55:10,008 - INFO - Interval: 5minute
-2026-01-20 23:55:10,008 - INFO - Calling Kite API for historical data...
-2026-01-20 23:55:10,113 - INFO - ✓ Received 1157 candles from API
-2026-01-20 23:55:10,115 - INFO - ℹ️  Excluding current candle (still forming) - using 1156 complete candles
-2026-01-20 23:55:10,115 - INFO - Calculating RSI (14-period) on complete candles...
-2026-01-20 23:55:10,121 - ERROR - ✗ Error fetching historical data: input array type is not double
-2026-01-20 23:55:10,121 - ERROR - Error type: Exception
-2026-01-20 23:55:10,122 - ERROR - Traceback: Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1281, in fetch_historical_data
-    # Calculate RSI on complete candles only
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 809, in calculate_rsi
-  File "/Users/ganeshghatti/Documents/Auto-trading/venv/lib/python3.14/site-packages/talib/__init__.py", line 80, in wrapper
-    result = func(*_args, **_kwds)
-  File "talib/_func.pxi", line 4477, in talib._ta_lib.RSI
-  File "talib/_func.pxi", line 22, in talib._ta_lib.check_array
-Exception: input array type is not double
-
-2026-01-20 23:55:10,122 - WARNING - ⚠ Data fetch failed. Connection might be lost.
-2026-01-20 23:55:10,122 - WARNING - ⚠ Not connected. Retrying in 300 seconds...
-2026-01-20 23:56:31,322 - INFO - 
-================================================================================
-2026-01-20 23:56:31,323 - INFO - Server stopped by user (Ctrl+C)
-2026-01-20 23:56:31,323 - INFO - ================================================================================
-2026-01-20 23:56:32,919 - INFO - ================================================================================
-2026-01-20 23:56:32,919 - INFO - Initializing Kite Data Fetcher Server
-2026-01-20 23:56:32,919 - INFO - ================================================================================
-2026-01-20 23:56:32,919 - INFO - Loading environment variables from .env file
-2026-01-20 23:56:32,919 - INFO - API_KEY loaded: lo8381a8...
-2026-01-20 23:56:32,919 - INFO - 📋 Loading configuration from config.json...
-2026-01-20 23:56:32,919 - INFO - ✓ Configuration loaded successfully
-2026-01-20 23:56:32,919 - INFO -   📈 Instrument: CRUDEOIL
-2026-01-20 23:56:32,919 - INFO -   🏢 Exchange: MCX
-2026-01-20 23:56:32,919 - INFO -   📊 Type: FUT
-2026-01-20 23:56:32,919 - INFO -   📏 High-Low Diff: 15.0
-2026-01-20 23:56:32,919 - INFO -   🎯 Target: 10.0
-2026-01-20 23:56:32,919 - INFO -   📦 Lots: 2
-2026-01-20 23:56:32,919 - INFO -   📦 Lot Size: 100
-2026-01-20 23:56:32,919 - INFO -   📦 Total Quantity: 200
-2026-01-20 23:56:32,919 - INFO -   💼 Trading Mode: PAPER
-2026-01-20 23:56:32,919 - INFO - 📊 Trading Mode: PAPER
-2026-01-20 23:56:32,919 - INFO - 📦 Trade Quantity: 2 lot(s)
-2026-01-20 23:56:32,919 - INFO - 🔄 Retry Interval: 300 seconds
-2026-01-20 23:56:32,920 - INFO - ⏱️  Fetch Interval: 300 seconds (5-min aligned + 10s delay)
-2026-01-20 23:56:32,920 - INFO - 📁 Candles Data File: candles_data.json
-2026-01-20 23:56:32,920 - INFO - 📁 Trades Log File: trades.json
-2026-01-20 23:56:32,920 - INFO - 📧 Email Notifications: Enabled
-2026-01-20 23:56:32,920 - INFO - ================================================================================
-2026-01-20 23:56:32,920 - INFO - ================================================================================
-2026-01-20 23:56:32,920 - INFO - STARTING KITE DATA FETCHER & TRADING SERVER
-2026-01-20 23:56:32,920 - INFO - ================================================================================
-2026-01-20 23:56:32,920 - INFO - Attempting to connect to Kite API...
-2026-01-20 23:56:32,920 - INFO - Reading access token from file: access_token.txt
-2026-01-20 23:56:32,920 - INFO - Access token loaded: JMrhfgQBfb...
-2026-01-20 23:56:32,920 - INFO - Initializing KiteConnect instance
-2026-01-20 23:56:32,920 - INFO - Setting access token
-2026-01-20 23:56:32,920 - INFO - Fetching FUT instrument...
-2026-01-20 23:56:32,920 - INFO - Fetching CRUDEOIL futures instruments...
-2026-01-20 23:56:33,665 - INFO - ✓ Selected CRUDEOIL Futures: CRUDEOIL26FEBFUT
-2026-01-20 23:56:33,665 - INFO -   Instrument Token: 119555335
-2026-01-20 23:56:33,665 - INFO -   Expiry: 2026-02-19
-2026-01-20 23:56:33,665 - INFO -   Lot Size: 100 units per lot (from .env)
-2026-01-20 23:56:33,665 - INFO -   Trading: 2 lot(s) = 200 units
-2026-01-20 23:56:33,670 - INFO - 🔌 Setting up WebSocket connection...
-2026-01-20 23:56:33,777 - INFO - ✓ WebSocket connected successfully
-2026-01-20 23:56:33,777 - INFO - 📡 Subscribed to CRUDEOIL26FEBFUT (119555335)
-2026-01-20 23:56:33,777 - INFO - 📊 WebSocket Mode: FULL (real-time OHLC + LTP for entry triggers)
-2026-01-20 23:56:35,675 - INFO - ✓ WebSocket setup complete
-2026-01-20 23:56:35,676 - INFO - ✓ Kite API connection established successfully
-2026-01-20 23:56:35,676 - INFO - ⏰ Current time: 23:56:35
-2026-01-20 23:56:35,676 - INFO - ⏰ Next candle completes at: 00:00:00
-2026-01-20 23:56:35,677 - INFO - ⏰ Will fetch at: 00:00:10 (+10s delay)
-2026-01-20 23:56:35,677 - INFO - ⏰ Waiting -86185 seconds...
-2026-01-20 23:56:35,677 - INFO - ⏳ Waiting for next 5-minute interval before first fetch...
-2026-01-20 23:56:35,677 - ERROR - 
-================================================================================
-2026-01-20 23:56:35,677 - ERROR - FATAL ERROR: sleep length must be non-negative
-2026-01-20 23:56:35,677 - ERROR - Error type: ValueError
-2026-01-20 23:56:35,678 - ERROR - Traceback: Traceback (most recent call last):
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1432, in main
-    fetcher.run()
-    ~~~~~~~~~~~^^
-  File "/Users/ganeshghatti/Documents/Auto-trading/websocket_server.py", line 1376, in run
-    time.sleep(wait_time)
-    ~~~~~~~~~~^^^^^^^^^^^
-ValueError: sleep length must be non-negative
-
-2026-01-20 23:56:35,678 - ERROR - ================================================================================
+2026-02-01 10:50:43,742 - INFO - Server stopped by user (Ctrl+C)
+2026-02-01 10:50:43,742 - INFO - ================================================================================
