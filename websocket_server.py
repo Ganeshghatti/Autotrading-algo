@@ -1067,13 +1067,15 @@ class KiteDataFetcher:
             
             # First check if alert should be discarded due to RSI reversal
             if self.should_discard_alert(rsi):
-                # Alert was discarded, return early
+                # Alert was discarded, update previous_rsi and return early
+                self.previous_rsi = rsi
                 return
             
             # Alert is still valid, WebSocket is monitoring for entry
             logger.info("   ✓ Alert still valid")
             logger.info("   📡 WebSocket monitoring active for real-time entry trigger")
             logger.info(f"   ⏳ Waiting for WebSocket to detect price crossing ₹{self.alert_candle.get('trigger_price'):.2f}")
+            self.previous_rsi = rsi  # Update previous_rsi for next candle
             return
         
         # Check for new RSI crossover to mark alert candle
