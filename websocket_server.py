@@ -1063,21 +1063,17 @@ class KiteDataFetcher:
             logger.info(f"   Alert Type: {self.alert_candle.get('type')}")
             logger.info(f"   Alert High: ₹{self.alert_candle.get('high'):.2f} | Alert Low: ₹{self.alert_candle.get('low'):.2f}")
             logger.info(f"   Trigger Price: ₹{self.alert_candle.get('trigger_price'):.2f}")
+            logger.info(f"   Alert RSI: {self.alert_candle.get('rsi'):.2f}")
             logger.info(f"   Current RSI: {rsi:.2f}")
-            
-            # First check if alert should be discarded due to RSI reversal
-            if self.should_discard_alert(rsi):
-                # Alert was discarded, update previous_rsi and return early
-                self.previous_rsi = rsi
-                return
             
             # Alert is still valid, WebSocket is monitoring for entry
             logger.info("   ✓ Alert still valid")
             logger.info("   📡 WebSocket monitoring active for real-time entry trigger")
             logger.info(f"   ⏳ Waiting for WebSocket to detect price crossing ₹{self.alert_candle.get('trigger_price'):.2f}")
-            self.previous_rsi = rsi  # Update previous_rsi for next candle
-            return
-        
+            
+            # Check if new crossover happens - if yes, we'll replace the old alert below
+            # Don't return yet, continue to check for new crossover
+            
         # Check for new RSI crossover to mark alert candle
         if rsi is None or self.previous_rsi is None:
             logger.info("ℹ️  TRADE SKIPPED - RSI not available or first calculation")
@@ -1113,6 +1109,11 @@ class KiteDataFetcher:
             logger.info(f"   Previous RSI: {self.previous_rsi:.2f}")
             logger.info(f"   Current RSI: {rsi:.2f}")
             
+            # If there's an existing alert, discard it and replace with new one
+            if self.alert_candle is not None:
+                logger.info(f"   ⚠️  Replacing previous alert candle (Alert RSI: {self.alert_candle.get('rsi'):.2f})")
+                logger.info(f"   New crossover detected - old alert will be replaced")
+            
             # Check candle range condition (high - low < high_low_diff from config)
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
@@ -1123,7 +1124,7 @@ class KiteDataFetcher:
                 logger.info(f"   🎯 Entry Trigger: HIGH > ₹{latest_candle['high']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
                 
-                # Mark this as alert candle
+                # Mark this as alert candle (replaces old alert if exists)
                 self.alert_candle = {
                     'type': 'BUY',
                     'rsi': rsi,
@@ -1146,6 +1147,11 @@ class KiteDataFetcher:
             logger.info(f"   Previous RSI: {self.previous_rsi:.2f}")
             logger.info(f"   Current RSI: {rsi:.2f}")
             
+            # If there's an existing alert, discard it and replace with new one
+            if self.alert_candle is not None:
+                logger.info(f"   ⚠️  Replacing previous alert candle (Alert RSI: {self.alert_candle.get('rsi'):.2f})")
+                logger.info(f"   New crossover detected - old alert will be replaced")
+            
             # Check candle range condition
             candle_range = latest_candle['high'] - latest_candle['low']
             logger.info(f"   Candle range: {candle_range:.2f}")
@@ -1156,7 +1162,7 @@ class KiteDataFetcher:
                 logger.info(f"   🎯 Entry Trigger: LOW < ₹{latest_candle['low']:.2f}")
                 logger.info(f"   📡 WebSocket will monitor real-time price for entry")
                 
-                # Mark this as alert candle
+                # Mark this as alert candle (replaces old alert if exists)
                 self.alert_candle = {
                     'type': 'SELL',
                     'rsi': rsi,
@@ -1177,45 +1183,6 @@ class KiteDataFetcher:
         
         # Update previous RSI
         self.previous_rsi = rsi
-    
-    def should_discard_alert(self, current_rsi):
-        """
-        Check if pending alert should be discarded due to RSI reversal
-        - BUY alert (RSI > 60): Discard if RSI drops back to <= 60
-        - SELL alert (RSI < 40): Discard if RSI rises back to >= 40
-        """
-        if not self.alert_candle or current_rsi is None:
-            return False
-        
-        alert = self.alert_candle
-        
-        if alert['type'] == 'BUY':
-            # BUY alert: Discard if RSI drops back to 60 or below
-            if current_rsi <= 60:
-                logger.info("="*80)
-                logger.info("❌ ALERT DISCARDED - RSI REVERSAL")
-                logger.info(f"   Alert Type: BUY (RSI > 60)")
-                logger.info(f"   Alert RSI: {alert['rsi']:.2f}")
-                logger.info(f"   Current RSI: {current_rsi:.2f} (dropped back to <= 60)")
-                logger.info(f"   Signal invalidated before entry")
-                logger.info("="*80)
-                self.alert_candle = None
-                return True
-        
-        elif alert['type'] == 'SELL':
-            # SELL alert: Discard if RSI rises back to 40 or above
-            if current_rsi >= 40:
-                logger.info("="*80)
-                logger.info("❌ ALERT DISCARDED - RSI REVERSAL")
-                logger.info(f"   Alert Type: SELL (RSI < 40)")
-                logger.info(f"   Alert RSI: {alert['rsi']:.2f}")
-                logger.info(f"   Current RSI: {current_rsi:.2f} (rose back to >= 40)")
-                logger.info(f"   Signal invalidated before entry")
-                logger.info("="*80)
-                self.alert_candle = None
-                return True
-        
-        return False
     
     def check_entry_trigger_realtime(self, ltp):
         """
